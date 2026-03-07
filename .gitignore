@@ -1,0 +1,13 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Pytest cache
+.pytest_cache/
+
+# Jupyter Notebook checkpoints (Interactive window artifacts)
+.ipynb_checkpoints/
