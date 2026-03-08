@@ -4,12 +4,12 @@ PIPELINE = {
     'target_tickers': ['TSLA'],  # Only calculate features for these
     
     # 1. FETCHING DATES (Includes the "Burn-in" period for long-term indicators)
-    'fetch_start_date': '2024-06-01', 
+    'fetch_start_date': '2020-03-01', 
     'fetch_end_date': '2026-03-05',
     
     # 2. TRAINING/TESTING DATES (The actual period we care about modeling)
-    'train_start_date': '2025-06-01',
-    'train_end_date': '2026-03-05',
+    'train_start_date': '2021-03-01',
+    'train_end_date': '2025-03-01',
     
     'interval': '1d',
     'input_window': 30,
@@ -45,3 +45,15 @@ FEATURES = [
     # Target Generation
     {'name': 'Target_VATC', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 20, 'multiplier': 0.5}},
 ]
+
+PATCHTST_PARAMS = {
+    'num_hidden_layers': 3,
+    'num_attention_heads': 4,
+    'num_classes': 3,       # Down, Neutral, Up
+    'patch_length': 10,      # Divides input_window (30) evenly
+    'stride': 10,
+    'dropout': 0.1,
+    'batch_size': 32,
+    'epochs': 100,
+    'learning_rate': 1e-4
+}

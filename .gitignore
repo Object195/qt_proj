@@ -1,13 +1,14 @@
-# Byte-compiled / optimized / DLL files
+# Data files
+processed_data.csv
+training/datasets/
+*.pt
+*.csv
+
+# Python environment and cache
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
-*.so
-
-# Pytest cache
-.pytest_cache/
-
-# Jupyter Notebook checkpoints (Interactive window artifacts)
+.venv/
+env/
+build/
 .ipynb_checkpoints/

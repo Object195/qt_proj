@@ -127,6 +127,7 @@ def ternary_target(df: pd.DataFrame, **kwargs) -> pd.Series:
     """
     window = kwargs.get('window', 20)
     multiplier = kwargs.get('multiplier', 0.5)
+    n = kwargs.get('n', 5)
     targets = kwargs.get('target_tickers', df['unique_id'].unique())
     mask = df['unique_id'].isin(targets)
     
@@ -135,17 +136,18 @@ def ternary_target(df: pd.DataFrame, **kwargs) -> pd.Series:
         log_ret = np.log(group['close'] / group['close'].shift(1))
         # 2. Rolling Volatility of historical log returns
         vol = log_ret.rolling(window=window).std()
-        # 3. Forward Return: ln(C_{t+1} / C_t)
-        forward_ret = log_ret.shift(-1)
+        # 3. Forward n-day Return: ln(C_{t+n} / C_t)
+        forward_ret = np.log(group['close'].shift(-n) / group['close'])
         
-        threshold = vol * multiplier
+        # Normalize threshold for n days: sigma * sqrt(n)
+        threshold = vol * multiplier * np.sqrt(n)
         
-        # 4. Signal Logic (Initialize as 0/Noise)
-        signal = pd.Series(0, index=group.index, dtype=float)
-        signal.loc[forward_ret > threshold] = 1.0
-        signal.loc[forward_ret < -threshold] = -1.0
+        # 4. Signal Logic (Initialize as 1/Neutral)
+        signal = pd.Series(1, index=group.index, dtype=float)
+        signal.loc[forward_ret > threshold] = 2.0 # Up
+        signal.loc[forward_ret < -threshold] = 0.0 # Down
         
-        # Preserve NaNs where data is insufficient (start) or missing (last row)
+        # Preserve NaNs where data is insufficient (start) or missing (last n rows)
         signal.loc[vol.isna() | forward_ret.isna()] = np.nan
         return signal
 
