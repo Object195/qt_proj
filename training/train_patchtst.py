@@ -1,6 +1,9 @@
 #%%
 import sys
 import os
+import shutil
+from datetime import datetime
+os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 # Add the project root to sys.path to allow importing config.py from the parent directory
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -147,5 +150,18 @@ fig.update_layout(
 fig.show()
 
 # 7. Save Model
-model.save_pretrained(os.path.join(PROJECT_ROOT, 'training', 'models', 'patchtst_vatc'))
-print("Model saved to training/models/patchtst_vatc")
+model_save_dir = os.path.join(PROJECT_ROOT, 'training', 'models', 'patchtst_vatc')
+model.save_pretrained(model_save_dir)
+print(f"Model saved to {model_save_dir}")
+
+# Save a copy of the config file
+if PIPELINE.get('save_config_with_timestamp', False):
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    config_filename = f'config_{timestamp}.py'
+else:
+    config_filename = 'config_copy.py'
+
+config_src = os.path.join(PROJECT_ROOT, 'config.py')
+config_dst = os.path.join(model_save_dir, config_filename)
+shutil.copy2(config_src, config_dst)
+print(f"Config saved to {config_dst}")

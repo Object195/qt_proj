@@ -27,6 +27,42 @@ def norm_low(df: pd.DataFrame, **kwargs) -> pd.Series:
     df_t = df[df['unique_id'].isin(targets)]
     return (df_t['low'] - df_t['close']) / df_t['close']
 
+def upper_shadow_ratio(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """Upper Shadow Ratio: (High - max(Open, Close)) / (High - Low)"""
+    targets = kwargs.get('target_tickers', df['unique_id'].unique())
+    df_t = df[df['unique_id'].isin(targets)]
+    
+    L = df_t['high'] - df_t['low']
+    upper_shadow = df_t['high'] - df_t[['open', 'close']].max(axis=1)
+    
+    # Use np.divide for safe division, returning 0 where L is 0
+    ratio = np.divide(upper_shadow.values, L.values, out=np.zeros_like(upper_shadow.values, dtype=float), where=L.values!=0)
+    return pd.Series(ratio, index=df_t.index)
+
+def lower_shadow_ratio(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """Lower Shadow Ratio: (min(Open, Close) - Low) / (High - Low)"""
+    targets = kwargs.get('target_tickers', df['unique_id'].unique())
+    df_t = df[df['unique_id'].isin(targets)]
+    
+    L = df_t['high'] - df_t['low']
+    lower_shadow = df_t[['open', 'close']].min(axis=1) - df_t['low']
+    
+    # Use np.divide for safe division, returning 0 where L is 0
+    ratio = np.divide(lower_shadow.values, L.values, out=np.zeros_like(lower_shadow.values, dtype=float), where=L.values!=0)
+    return pd.Series(ratio, index=df_t.index)
+
+def body_range_ratio(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """Body to Range Ratio: (Close - Open) / (High - Low)"""
+    targets = kwargs.get('target_tickers', df['unique_id'].unique())
+    df_t = df[df['unique_id'].isin(targets)]
+    
+    L = df_t['high'] - df_t['low']
+    body = df_t['close'] - df_t['open']
+    
+    # Use np.divide for safe division, returning 0 where L is 0
+    ratio = np.divide(body.values, L.values, out=np.zeros_like(body.values, dtype=float), where=L.values!=0)
+    return pd.Series(ratio, index=df_t.index)
+
 def custom_ema(df: pd.DataFrame, **kwargs) -> pd.Series:
     """Calculates EMA based on a dynamic length parameter."""
     length = kwargs.get('length', 20) 
