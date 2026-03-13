@@ -76,10 +76,10 @@ XGBOOST_PARAMS = {
 
 SR_PARAMS = {
     'window_size':5, #Window size for extrema detection (lookback/lookforward). 
-    'penalty_fac':0.4,
+    'penalty_fac':0.25,
     'vol_filter':True,#only detect local vol max as turning points
     'vol_window': 1, #radias of looking forward/backward on daily vol (cannot be larger than window size)
-    'std_fac':2,    # Multiplier for standard deviation in range calculation.
+    'std_fac':1,    # Multiplier for standard deviation in range calculation.
     'atr_fac':0.5, # Multiplier for ATR in range calculation.
     'bb_length':10, #Bollinger Band length.
     'bb_std':1.5} #Bollinger Band standard deviation multiplier.
