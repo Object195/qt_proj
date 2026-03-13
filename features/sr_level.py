@@ -1,25 +1,19 @@
 import numpy as np
 import pandas as pd
 import pandas_ta as ta
-
+from config import SR_PARAMS
 class SRLevelDetector:
-    def __init__(self, N=5, p=0.4,std_fac=2, atr_fac=0.75, bb_length=10, bb_std=1.5):
-        """
-        Args:
-            N (int): Window size for extrema detection (lookback/lookforward).
-            p (float): Penalty factor for pending touches (0 < p < 1).
-            a (float): Multiplier for standard deviation in range calculation.
-            b (float): Multiplier for ATR in range calculation.
-            bb_length (int): Bollinger Band length.
-            bb_std (float): Bollinger Band standard deviation multiplier.
-        """
-        self.N = N
-        self.p = p
-        self.std_fac= std_fac
-        self.atr_fac= atr_fac
-        self.bb_length = bb_length
-        self.bb_std = bb_std
-        print(N)
+    def __init__(self, print_para=False):
+        self.N = SR_PARAMS['window_size']
+        self.p = SR_PARAMS['penalty_fac']
+        self.std_fac= SR_PARAMS['std_fac']
+        self.atr_fac= SR_PARAMS['atr_fac']
+        self.bb_length = SR_PARAMS['bb_length']
+        self.bb_std = SR_PARAMS['bb_std']
+        self.vol_filter = SR_PARAMS['vol_filter']
+        self.Nvol = SR_PARAMS['vol_window']
+        self.print_para = print_para
+
         # List of SR levels. Each level is a dict: {'V': float, 'M': float, 'S': float}
         self.levels = [] 
         self.pending_touches = set()
@@ -81,6 +75,9 @@ class SRLevelDetector:
         Processes the DataFrame day-by-day to detect SR levels.
         Expects columns: 'open', 'high', 'low', 'close', 'volume'.
         """
+        if self.print_para:
+            print("SR Parameters:")
+            print(SR_PARAMS)
         # Ensure lowercase
         df = df.copy()
         df.columns = [c.lower() for c in df.columns]
@@ -148,6 +145,16 @@ class SRLevelDetector:
             
             is_max = (subset_high[self.N] == np.max(subset_high))
             is_min = (subset_low[self.N] == np.min(subset_low))
+            #apply volume filter
+            if self.vol_filter:
+                window_start_v = k-self.Nvol
+                window_end_v = k+self.Nvol
+                subset_volume = df['volume'].iloc[window_start_v : window_end_v + 1].values
+                is_vol_max = (subset_volume[self.Nvol] == np.max(subset_volume))
+            else: 
+                is_vol_max = True
+                
+                
             #print(is_max, is_min)
             # --- Step 3: Bollinger Band Confirmation ---
             row_k = df.iloc[k]
@@ -161,7 +168,7 @@ class SRLevelDetector:
             elif is_min and row_k['low'] < bbl_k:
                 confirmed_price = row_k['low']
             # --- Step 4: Re-evaluate and Update ---
-            if confirmed_price is not None:
+            if (confirmed_price is not None) and is_vol_max:
                 vol_k = row_k['volume']
                 atr_k = row_k['atr']
                 
