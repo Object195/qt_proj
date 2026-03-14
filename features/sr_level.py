@@ -85,7 +85,7 @@ class SRLevelDetector:
         # Pre-calculate indicators
         # ATR
         df['atr'] = ta.atr(df['high'], df['low'], df['close'], length=14)
-        df['atr'] = df['atr'].fillna(method='bfill')
+        df['atr'] = df['atr'].bfill()
         
         # Bollinger Bands
         bb = ta.bbands(df['close'], length=self.bb_length, std=self.bb_std, ddof=0, talib=False)
