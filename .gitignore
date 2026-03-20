@@ -3,6 +3,7 @@ processed_data.csv
 training/datasets/
 *.pt
 *.csv
+*.zst
 
 # Python environment and cache
 __pycache__/
@@ -12,3 +13,4 @@ __pycache__/
 env/
 build/
 .ipynb_checkpoints/
+.vscode/
