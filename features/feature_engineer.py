@@ -24,15 +24,27 @@ class FeatureEngineer:
                     params['target_tickers'] = self.target_tickers
                 
                 if hasattr(indicators, func_name):
-                    print(f"Applying custom feature: {name} with params: {params}")
+                    def _format_param(val):
+                        if isinstance(val, pd.DataFrame): return f"<DataFrame shape={val.shape}>"
+                        if isinstance(val, dict): return f"<dict keys={list(val.keys())}>"
+                        if isinstance(val, list): return f"<list len={len(val)}>"
+                        return val
+                        
+                    print_params = {k: _format_param(v) for k, v in params.items()}
+                    print(f"Applying custom feature: {name} with params: {print_params}")
                     func = getattr(indicators, func_name) 
                     
                     # NEW: Pass the params into the function
                     result = func(df_featured, **params)
-                    if isinstance(result, pd.DataFrame):
-                        df_featured[name] = result.squeeze()
+                    
+                    if isinstance(name, list):
+                        for col_name in name:
+                            df_featured[col_name] = result[col_name]
                     else:
-                        df_featured[name] = result
+                        if isinstance(result, pd.DataFrame):
+                            df_featured[name] = result.squeeze()
+                        else:
+                            df_featured[name] = result
                 else:
                     raise ValueError(f"Function '{func_name}' not found in indicators.py")
 

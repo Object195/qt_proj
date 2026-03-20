@@ -38,7 +38,29 @@ class BacktestVisualizer:
         perf_1 = (delta == 1).sum() / total_points
         perf_2 = (delta == 2).sum() / total_points
 
-        stats_str = f"Perfect (Δ=0): {perf_0:.2%}, Off by 1 (Δ=1): {perf_1:.2%}, Wrong (Δ=2): {perf_2:.2%}"
+        # Debugging: Print label distributions to verify if the model is guessing conservatively
+        true_dist = self.plot_df['True_Label'].value_counts(normalize=True).sort_index().to_dict()
+        pred_dist = self.plot_df['Predicted_Label'].value_counts(normalize=True).sort_index().to_dict()
+        print(f"\n[Distribution] True Labels: {true_dist}")
+        print(f"[Distribution] Predicted Labels: {pred_dist}\n")
+
+        # Vectorized simulated return calculation
+        self.plot_df['Position'] = self.plot_df['Predicted_Label'] - 1
+        self.plot_df['Daily_Return'] = self.plot_df['close'].pct_change()
+        self.plot_df['Strategy_Return'] = self.plot_df['Position'].shift(1) * self.plot_df['Daily_Return']
+        
+        # --- ALTERNATIVE (More Realistic Execution) ---
+        # If you enter at the Open of day 't' (after getting signal at Close 't-1')
+        # and exit at the Close of day 't', use this instead:
+        # daily_open_to_close = (self.plot_df['close'] - self.plot_df['open']) / self.plot_df['open']
+        # self.plot_df['Strategy_Return'] = self.plot_df['Position'].shift(1) * daily_open_to_close
+        
+        self.plot_df['Cumulative_Return'] = (1 + self.plot_df['Strategy_Return'].fillna(0)).cumprod()
+        
+        final_return = self.plot_df['Cumulative_Return'].iloc[-1] - 1
+        return_str = f" | Sim Return: {final_return:.2%}"
+
+        stats_str = f"Perfect (Δ=0): {perf_0:.2%}, Off by 1 (Δ=1): {perf_1:.2%}, Wrong (Δ=2): {perf_2:.2%}{return_str}"
         print(f"Performance Stats: {stats_str}")
         return stats_str
 
@@ -53,11 +75,11 @@ class BacktestVisualizer:
         stats_str = self._calculate_stats()
 
         fig = make_subplots(
-            rows=2, cols=1,
+            rows=3, cols=1,
             shared_xaxes=True,
             vertical_spacing=0.05,
-            row_heights=[0.6, 0.4],
-            subplot_titles=("Price & Signals", "Model Probabilities")
+            row_heights=[0.5, 0.25, 0.25],
+            subplot_titles=("Price & Signals", "Model Probabilities", "Strategy Equity Curve")
         )
 
         # Row 1: Candlestick
@@ -103,6 +125,14 @@ class BacktestVisualizer:
         # Row 2: Probabilities
         fig.add_trace(go.Scatter(x=self.plot_df['ds'], y=self.plot_df['Prob_Up'], name="Prob Up (Buy)", line=dict(color='#00ff00', width=1)), row=2, col=1)
         fig.add_trace(go.Scatter(x=self.plot_df['ds'], y=self.plot_df['Prob_Down'], name="Prob Down (Sell)", line=dict(color='#ff0000', width=1)), row=2, col=1)
+
+        # Row 3: Equity Curve
+        fig.add_trace(go.Scatter(
+            x=self.plot_df['ds'], 
+            y=self.plot_df['Cumulative_Return'], 
+            name="Equity Curve", 
+            line=dict(color='magenta', width=2)
+        ), row=3, col=1)
 
         fig.update_layout(
             title=f'Backtest Analysis: {title_suffix}<br><sup>{stats_str}</sup>',

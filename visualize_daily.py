@@ -4,7 +4,8 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import os
-
+import pandas_market_calendars as mcal
+import numpy as np
 # Import the new indicator function
 from features.vol_indicator import calculate_m_indicator
 
@@ -16,8 +17,12 @@ DATA_DIR = r"D:\qt\data\TSLA"
 FILE_NAME = "xnas-itch-20180501-20260313.ohlcv-1m.dbn.zst"
 FILE_PATH = os.path.join(DATA_DIR, FILE_NAME)
 TICKER = "TSLA"
-SELECTED_DATE = "2025-06-05" # YYYY-MM-DD format
-M_INDICATOR_WINDOW = 5 # Window size for the M indicator EMA
+#SELECTED_DATE = "2025-11-18" # YYYY-MM-DD format
+#SELECTED_DATE = "2024-12-18" # YYYY-MM-DD format
+#SELECTED_DATE = "2025-04-07" # YYYY-MM-DD format
+#SELECTED_DATE = "2025-07-01" # YYYY-MM-DD format
+SELECTED_DATE = "2025-03-31" # YYYY-MM-DD format
+M_INDICATOR_WINDOW = 3 # Window size for the M indicator EMA
 
 # --- Main Script ---
 
@@ -39,6 +44,41 @@ def load_data(file_path: str) -> pd.DataFrame | None:
          print("Warning: The loaded DataFrame is empty.")   
     return df
 
+def load_daily_data(full_df: pd.DataFrame, selected_date: str) -> pd.DataFrame:
+    """
+    Extracts and filters intraday data for a specific date from a full DataFrame.
+    Automatically detects half-trading days using an official market calendar
+    and adjusts the clipping window to
+    exclude the first minute and the last two minutes of trading.
+    """
+    target_date = pd.to_datetime(selected_date).date()
+    daily_df = full_df[full_df.index.date == target_date].copy()
+    if daily_df.empty:
+        return daily_df # Return empty df if no data for the date
+
+    daily_df.index = daily_df.index.tz_convert('America/New_York')
+
+    # --- Half-day detection using an official market calendar ---
+    nyse = mcal.get_calendar('NYSE')
+    schedule = nyse.schedule(start_date=selected_date, end_date=selected_date)
+
+    # A normal day closes at 16:00. A half-day closes earlier (e.g., 13:00).
+    # If schedule is empty, it's a holiday/weekend.
+    is_early_close = False
+    if not schedule.empty:
+        market_close_time = schedule.iloc[0]['market_close'].time()
+        #print(market_close_time)
+        is_early_close = market_close_time < pd.to_datetime('19:59').time()
+
+    if is_early_close:
+        # Half-trading day (e.g., closes at 13:00), so clip from 09:31 to 12:58
+        start_time, end_time = '09:35', '12:55'
+    else:
+        # Normal trading day (closes at 16:00), so clip from 09:31 to 15:58
+        start_time, end_time = '09:35', '15:55'
+
+    return daily_df.between_time(start_time, end_time)
+
 def plot_intraday_candles(daily_df: pd.DataFrame, ticker: str, date_str: str):
     """
     Plots a candlestick chart for the given daily DataFrame.
@@ -54,8 +94,12 @@ def plot_intraday_candles(daily_df: pd.DataFrame, ticker: str, date_str: str):
 
     # Calculate the M indicator
     # This is done first, and the result is added as a new column to our plotting DataFrame.
-    plot_df['m_indicator'] = calculate_m_indicator(plot_df, n=M_INDICATOR_WINDOW)
-
+    plot_df['m_indicator'] = calculate_m_indicator(plot_df, n=M_INDICATOR_WINDOW,method='co_ma',filter='hard')
+    print('M value')
+    print(plot_df['m_indicator'].mean())
+    print('M variance')
+    print(plot_df['m_indicator'].std())
+    #print(np.square(plot_df['m_indicator']).mean())
     # Create subplots: 1 for candles, 1 for the M indicator
     fig = make_subplots(
         rows=3, cols=1,
@@ -74,9 +118,9 @@ def plot_intraday_candles(daily_df: pd.DataFrame, ticker: str, date_str: str):
     ), row=1, col=1)
 
     # Add M Indicator to the second row
-    fig.add_trace(go.Scatter(
+    fig.add_trace(go.Bar(
         x=plot_df.index, y=plot_df['m_indicator'],
-        name='M Indicator', line=dict(color='cyan', width=1.5)
+        name='M Indicator', marker_color='lightblue'
     ), row=2, col=1)
 
     # Add Volume bars to the third row
@@ -106,13 +150,11 @@ if __name__ == "__main__":
 
     if full_df is not None and not full_df.empty:
         # 2. Filter for the selected date
-        target_date = pd.to_datetime(SELECTED_DATE).date()
-        daily_df = full_df[full_df.index.date == target_date].copy()
-        daily_df.index  = daily_df.index.tz_convert('America/New_York')
-        daily_df = daily_df.between_time('09:31', '15:59')
+        daily_df = load_daily_data(full_df, SELECTED_DATE)
         # 3. Plot if data for that date exists
         if not daily_df.empty:
             plot_intraday_candles(daily_df, TICKER, SELECTED_DATE)
         else:
             print(f"\nNo data found for {TICKER} on {SELECTED_DATE}.")
             print("Please check the date range printed above and adjust 'SELECTED_DATE' if needed.")
+# %%

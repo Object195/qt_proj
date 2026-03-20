@@ -1,16 +1,92 @@
 #%%
 # generate_data.py
+
+# Enable auto-reloading of modules in interactive environments
+try:
+    from IPython import get_ipython
+    if get_ipython() is not None:
+        get_ipython().run_line_magic('load_ext', 'autoreload')
+        get_ipython().run_line_magic('autoreload', '2')
+except ImportError:
+    pass
+
 import pandas as pd
-from config import PIPELINE, FEATURES
+import os
+import databento as dbn
+from config import PIPELINE, FEATURES, TARGET_COL
 from features.data_fetcher import DataFetcher
 from features.feature_engineer import FeatureEngineer
 from features import indicators
-from training.patchtst_converter import PatchTSTDataConverter
-from training.xgboost_converter import XGBoostDataConverter
+import pickle
+import tkinter as tk
+from tkinter import messagebox
 
 # 1. Fetch Data
 fetcher = DataFetcher(PIPELINE)
 raw_data = fetcher.fetch()
+
+# Load 1-min data explicitly here so it can be shared across multiple features
+DATA_DIR = r"D:\qt\data\TSLA"
+FILE_NAME = "xnas-itch-20180501-20260313.ohlcv-1m.dbn.zst"
+FILE_PATH = os.path.join(DATA_DIR, FILE_NAME)
+
+if os.path.exists(FILE_PATH):
+    print(f"Loading 1-min data from {FILE_PATH}...")
+    store = dbn.DBNStore.from_file(FILE_PATH)
+    intraday_df = store.to_df()
+    
+    # Explicitly scan SR levels
+    from features.sr_level import SRLevelDetector
+    from config import SR_PARAMS
+    from tqdm import tqdm
+    import pandas_ta as ta
+
+    sr_history_dict = {}
+    N_param = SR_PARAMS['window_size']
+    Nvol_param = SR_PARAMS['vol_window']
+    start_idx = max(N_param * 2, N_param + Nvol_param)
+
+    for ticker in PIPELINE.get('target_tickers', []):
+        mask = raw_data['unique_id'] == ticker
+        if not mask.any(): continue
+        df_ticker = raw_data[mask].copy()
+        df_ticker['atr'] = ta.atr(df_ticker['high'], df_ticker['low'], df_ticker['close'], length=14).bfill()
+        
+        if 'ds' in df_ticker.columns:
+            df_ticker.set_index('ds', drop=False, inplace=True)
+            df_ticker.index = pd.to_datetime(df_ticker.index)
+
+        history_file = f'sr_history_{ticker}.pkl'
+        regenerate = True
+        if os.path.exists(history_file):
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes("-topmost", True)
+            regenerate = messagebox.askyesno("Regenerate SR Levels", f"SR history file found for {ticker}. Do you want to regenerate it?")
+            root.destroy()
+            
+        if regenerate:
+            detector = SRLevelDetector(intraday_df=intraday_df)
+            history = []
+            for i in tqdm(range(len(df_ticker)), desc=f"Scanning SR for {ticker}"):
+                if i >= start_idx:
+                    detector.process_day(i, df_ticker)
+                history.append(detector.get_levels())
+                
+            with open(history_file, 'wb') as f:
+                pickle.dump(history, f)
+        else:
+            with open(history_file, 'rb') as f:
+                history = pickle.load(f)
+                
+        sr_history_dict[ticker] = history
+        
+    # Inject the loaded intraday_df into features that require it
+    for feature in FEATURES:
+        if feature.get('function') == 'm_indicators':
+            feature.setdefault('params', {})['intraday_df'] = intraday_df
+        elif feature.get('function') == 'sr_vwd':
+            feature.setdefault('params', {})['sr_history_dict'] = sr_history_dict
 
 # 2. Apply Features
 engineer = FeatureEngineer(FEATURES, target_tickers=PIPELINE.get('target_tickers'))
@@ -18,7 +94,7 @@ processed_data = engineer.apply_features(raw_data)
 
 # 3. Calculate Target (Explicitly in main as requested)
 target_params = {**PIPELINE, 'window': 20, 'multiplier': 0.5, 'n': PIPELINE.get('forecast_horizon', 5)}
-processed_data['Target_VATC'] = indicators.ternary_target(processed_data, **target_params)
+processed_data[TARGET_COL] = indicators.ternary_target(processed_data, **target_params)
 
 # Ensure ds is datetime for proper plotting
 processed_data['ds'] = pd.to_datetime(processed_data['ds'])
@@ -26,40 +102,3 @@ processed_data['ds'] = pd.to_datetime(processed_data['ds'])
 # 4. Save Preprocessed Data (for visualization/debugging)
 processed_data.to_csv('processed_data.csv', index=False)
 print("Saved processed_data.csv")
-
-# 5. Convert to Model-Specific Training Format
-MODEL_TYPE = 'xgboost' # Future options: 'patchtst', 'lstm', etc.
-
-# Select features: All columns in FEATURES config except the target itself
-feature_names = [f['name'] for f in FEATURES if f['name'] != 'Target_VATC']
-
-if MODEL_TYPE == 'patchtst':
-    print("Converting data for PatchTST model...")
-    converter = PatchTSTDataConverter(
-        window_size=PIPELINE['input_window'],
-        feature_cols=feature_names,
-        target_col='Target_VATC'
-    )
-    datasets = converter.process(
-        processed_data, 
-        train_start=PIPELINE['train_start_date'],
-        train_end=PIPELINE['train_end_date'],
-        test_end=PIPELINE['fetch_end_date']
-    )
-    converter.save(datasets, output_dir='training/datasets/patchtst')
-elif MODEL_TYPE == 'xgboost':
-    print("Converting data for XGBoost model...")
-    converter = XGBoostDataConverter(
-        window_size=PIPELINE['input_window'],
-        feature_cols=feature_names,
-        target_col='Target_VATC'
-    )
-    datasets = converter.process(
-        processed_data,
-        train_start=PIPELINE['train_start_date'],
-        train_end=PIPELINE['train_end_date'],
-        test_end=PIPELINE['fetch_end_date']
-    )
-    converter.save(datasets, output_dir='training/datasets/xgboost')
-else:
-    print(f"No data converter defined for MODEL_TYPE: {MODEL_TYPE}")

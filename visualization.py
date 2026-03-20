@@ -3,6 +3,9 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from config import PIPELINE
+import os
+import pickle
+import numpy as np
 
 # 1. Load the processed data
 df = pd.read_csv('processed_data.csv')
@@ -11,20 +14,24 @@ df['ds'] = pd.to_datetime(df['ds'])
 # 2. Define ranges from config
 train_start = pd.to_datetime(PIPELINE['train_start_date'])
 train_end = pd.to_datetime(PIPELINE['train_end_date'])
-test_end = pd.to_datetime(PIPELINE['fetch_end_date'])
+if 'test_start_date' in PIPELINE:
+    test_start = pd.to_datetime(PIPELINE['test_start_date'])
+else:
+    test_start = train_end + pd.Timedelta(days=PIPELINE.get('forecast_horizon', 3))
+test_end = pd.to_datetime(PIPELINE.get('test_end_date', PIPELINE['fetch_end_date']))
 
 # 3. Selection: Choose 'full', 'train', 'test', or 'custom'
 # Change these variables to filter the view
 VIEW_MODE = 'test' 
 CUSTOM_START = '2023-01-01'
-CUSTOM_END = '2023-06-01'
+CUSTOM_END = '2024-01-01'
 
 if VIEW_MODE == 'train':
     plot_df = df[(df['ds'] >= train_start) & (df['ds'] <= train_end)].copy()
     title_suffix = f"Training Set ({PIPELINE['train_start_date']} to {PIPELINE['train_end_date']})"
 elif VIEW_MODE == 'test':
-    plot_df = df[(df['ds'] > train_end) & (df['ds'] <= test_end)].copy()
-    title_suffix = f"Test Set ({PIPELINE['train_end_date']} to {PIPELINE['fetch_end_date']})"
+    plot_df = df[(df['ds'] >= test_start) & (df['ds'] <= test_end)].copy()
+    title_suffix = f"Test Set ({test_start.strftime('%Y-%m-%d')} to {test_end.strftime('%Y-%m-%d')})"
 elif VIEW_MODE == 'custom':
     plot_df = df[(df['ds'] >= pd.to_datetime(CUSTOM_START)) & (df['ds'] <= pd.to_datetime(CUSTOM_END))].copy()
     title_suffix = f"Custom Range ({CUSTOM_START} to {CUSTOM_END})"
@@ -34,7 +41,8 @@ else:
 
 # 4. Visualization Settings
 OVERLAY_INDICATORS = []
-SUBPLOT_INDICATORS = ['ema_bias_200', 'rsi', 'Target_VATC']
+#SUBPLOT_INDICATORS = ['ema_bias_200', 'rsi', 'vwd_support', 'vwd_resistance','m_std_diff', 'vwap_score', 'mwap_diff', 'Target_VATC']
+SUBPLOT_INDICATORS = ['vwd_support', 'vwd_resistance', 'Target_VATC']
 
 for ticker in PIPELINE.get('target_tickers', []):
     ticker_data = plot_df[plot_df['unique_id'] == ticker]
@@ -79,15 +87,47 @@ for ticker in PIPELINE.get('target_tickers', []):
     # Add Subplot Indicators
     for i, indicator in enumerate(SUBPLOT_INDICATORS, start=2):
         if indicator in ticker_data.columns:
-            fig.add_trace(go.Scatter(
+            fig.add_trace(go.Bar(
                 x=ticker_data['ds'], y=ticker_data[indicator],
-                name=indicator, line=dict(width=1.5)
+                name=indicator, 
             ), row=i, col=1)
             
             if indicator == 'ema_bias_200':
                 fig.add_hline(y=0, line_dash="dash", line_color="gray", row=i, col=1)
             elif indicator == 'Target_VATC':
                 fig.add_hline(y=1, line_dash="dash", line_color="gray", row=i, col=1)
+            elif indicator in ['vwd_support', 'vwd_resistance']:
+                max_val = ticker_data[indicator].max()
+                fig.update_yaxes(range=[0, max_val * 1.05 if pd.notna(max_val) and max_val > 0 else 1], row=i, col=1)
+
+    # 5. Overlay SR Levels from Saved PKL
+    sr_file = f'sr_history_{ticker}.pkl'
+    if os.path.exists(sr_file):
+        with open(sr_file, 'rb') as f:
+            sr_history = pickle.load(f)
+            
+        sr_levels = sr_history[-1] if sr_history else pd.DataFrame()
+        n_trunc = 30
+        if not sr_levels.empty:
+            price_min = ticker_data['low'].min()
+            price_max = ticker_data['high'].max()
+            sr_levels = sr_levels[(sr_levels['M'] >= price_min) & (sr_levels['M'] <= price_max)]
+            
+            sr_levels = sr_levels.sort_values(by='V', ascending=False).head(n_trunc)
+            max_vol = sr_levels['V'].max() if not sr_levels.empty else 1.0
+            avg_vol = sr_levels['V'].mean() if not sr_levels.empty else 1.0
+
+            for _, row in sr_levels.iterrows():
+                level = row['M']
+                vol = row['V']
+                sigma = np.sqrt(row['S'] / row['V']) if row['V'] > 0 else 0
+                
+                opacity = 0.2 + 0.8 * (vol / max_vol)
+                rel_vol = vol / avg_vol
+                count = int(row.get('count', 1))
+
+                fig.add_hline(y=level, line_dash="dash", line_color="cyan", opacity=opacity, annotation_text=f"{level:.1f} | Vol: {rel_vol:.2f} | N: {count}", row=1, col=1)
+                fig.add_hrect(y0=level - sigma, y1=level + sigma, line_width=0, fillcolor="cyan", opacity=opacity * 0.2, row=1, col=1)
 
     fig.update_layout(
         title=f'{ticker} Analysis - {title_suffix}',

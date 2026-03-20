@@ -1,6 +1,16 @@
 #%%
 import sys
 import os
+
+# Enable auto-reloading of modules in interactive environments
+try:
+    from IPython import get_ipython
+    if get_ipython() is not None:
+        get_ipython().run_line_magic('load_ext', 'autoreload')
+        get_ipython().run_line_magic('autoreload', '2')
+except ImportError:
+    pass
+
 import shutil
 from datetime import datetime
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
@@ -14,17 +24,39 @@ import torch.nn as nn
 from torch.utils.data import TensorDataset, DataLoader
 from transformers import PatchTSTConfig, PatchTSTForClassification
 from tqdm import tqdm
+import random
+import numpy as np
 import plotly.graph_objects as go
-from config import PIPELINE, PATCHTST_PARAMS
+from config import PIPELINE, PATCHTST_PARAMS, SELECTED_FEATURES
+
+# --- REPRODUCIBILITY ---
+#seed = PATCHTST_PARAMS.get('random_seed')
+seed = None
+if seed is not None:
+    print(f"Locking random seed to {seed} for reproducible training...")
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        torch.backends.cudnn.deterministic = True
+        torch.backends.cudnn.benchmark = False
 
 # 1. Load Data
-data_path = os.path.join(PROJECT_ROOT, 'training', 'datasets', 'train_data.pt')
+data_path = os.path.join(PROJECT_ROOT, 'training', 'datasets', 'patchtst', 'train_data.pt')
 if not os.path.exists(data_path):
     raise FileNotFoundError(f"{data_path} not found. Run generate_data.py first.")
 
 train_data = torch.load(data_path, weights_only=False)
 X_train = train_data['X'] # Shape: (N, Window, Features)
 y_train = train_data['y'] # Shape: (N,)
+
+print("-" * 30)
+print(f"Features used for training ({len(SELECTED_FEATURES)}):")
+for i, feat in enumerate(SELECTED_FEATURES):
+    print(f"  {i+1}. {feat}")
+print("-" * 30)
 
 print(f"Training Data Shape: {X_train.shape}")
 

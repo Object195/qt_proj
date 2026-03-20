@@ -2,6 +2,15 @@
 import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
+# Enable auto-reloading of modules in interactive environments
+try:
+    from IPython import get_ipython
+    if get_ipython() is not None:
+        get_ipython().run_line_magic('load_ext', 'autoreload')
+        get_ipython().run_line_magic('autoreload', '2')
+except ImportError:
+    pass
+
 import sys
 import importlib.util
 import torch
@@ -29,8 +38,8 @@ PIPELINE = config_model.PIPELINE
 print(f"Loaded configuration from {config_path}")
 
 # 2. Load Model and Data
-train_data_path = 'training/datasets/train_data.pt'
-test_data_path = 'training/datasets/test_data.pt'
+train_data_path = 'training/datasets/patchtst/train_data.pt'
+test_data_path = 'training/datasets/patchtst/test_data.pt'
 
 if not os.path.exists(model_path):
     raise FileNotFoundError("Model not found. Run training/train_patchtst.py first.")
@@ -86,15 +95,19 @@ CUSTOM_END = '2024-06-01'
 
 train_start = pd.to_datetime(PIPELINE['train_start_date'])
 train_end = pd.to_datetime(PIPELINE['train_end_date'])
-test_end = pd.to_datetime(PIPELINE['fetch_end_date'])
+if 'test_start_date' in PIPELINE:
+    test_start = pd.to_datetime(PIPELINE['test_start_date'])
+else:
+    test_start = train_end + pd.Timedelta(days=PIPELINE.get('forecast_horizon', 3))
+test_end = pd.to_datetime(PIPELINE.get('test_end_date', PIPELINE['fetch_end_date']))
 
 dates_pd = pd.to_datetime(dates_all)
 if VIEW_MODE == 'train':
     mask = (dates_pd >= train_start) & (dates_pd <= train_end)
     title_suffix = f"PatchTST - Training Set ({PIPELINE['train_start_date']} to {PIPELINE['train_end_date']})"
 elif VIEW_MODE == 'test':
-    mask = (dates_pd > train_end) & (dates_pd <= test_end)
-    title_suffix = f"PatchTST - Test Set ({PIPELINE['train_end_date']} to {PIPELINE['fetch_end_date']})"
+    mask = (dates_pd >= test_start) & (dates_pd <= test_end)
+    title_suffix = f"PatchTST - Test Set ({test_start.strftime('%Y-%m-%d')} to {test_end.strftime('%Y-%m-%d')})"
 elif VIEW_MODE == 'custom':
     mask = (dates_pd >= pd.to_datetime(CUSTOM_START)) & (dates_pd <= pd.to_datetime(CUSTOM_END))
     title_suffix = f"Custom Range ({CUSTOM_START} to {CUSTOM_END})"

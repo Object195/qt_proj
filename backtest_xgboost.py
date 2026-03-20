@@ -67,15 +67,19 @@ CUSTOM_END = '2024-06-01'
 
 train_start = pd.to_datetime(PIPELINE['train_start_date'])
 train_end = pd.to_datetime(PIPELINE['train_end_date'])
-test_end = pd.to_datetime(PIPELINE['fetch_end_date'])
+if 'test_start_date' in PIPELINE:
+    test_start = pd.to_datetime(PIPELINE['test_start_date'])
+else:
+    test_start = train_end + pd.Timedelta(days=PIPELINE.get('forecast_horizon', 3))
+test_end = pd.to_datetime(PIPELINE.get('test_end_date', PIPELINE['fetch_end_date']))
 
 dates_pd = pd.to_datetime(dates_all)
 if VIEW_MODE == 'train':
     mask = (dates_pd >= train_start) & (dates_pd < train_end)
     title_suffix = f"XGBoost - Training Set ({PIPELINE['train_start_date']} to {PIPELINE['train_end_date']})"
 elif VIEW_MODE == 'test':
-    mask = (dates_pd >= train_end) & (dates_pd < test_end)
-    title_suffix = f"XGBoost - Test Set ({PIPELINE['train_end_date']} to {PIPELINE['fetch_end_date']})"
+    mask = (dates_pd >= test_start) & (dates_pd < test_end)
+    title_suffix = f"XGBoost - Test Set ({test_start.strftime('%Y-%m-%d')} to {test_end.strftime('%Y-%m-%d')})"
 elif VIEW_MODE == 'custom':
     mask = (dates_pd >= pd.to_datetime(CUSTOM_START)) & (dates_pd <= pd.to_datetime(CUSTOM_END))
     title_suffix = f"XGBoost - Custom Range ({CUSTOM_START} to {CUSTOM_END})"
@@ -122,7 +126,13 @@ visualizer.plot(title_suffix=title_suffix)
 print("\nCalculating and plotting feature importance...")
 
 # Get original feature names and model parameters from config
-feature_names = [f['name'] for f in FEATURES if f['name'] != 'Target_VATC']
+feature_names = []
+for f in FEATURES:
+    if f['name'] == 'Target_VATC': continue
+    if isinstance(f['name'], list):
+        feature_names.extend(f['name'])
+    else:
+        feature_names.append(f['name'])
 window_size = PIPELINE['input_window']
 num_original_features = len(feature_names)
 
@@ -155,9 +165,10 @@ if total_gain_sum > 0:
     importance_series = importance_series / total_gain_sum
 
 importance_series = importance_series[importance_series > 0]
-delta = np.abs(predicted_labels - y_eval)
-total = len(delta)
-stats_text = f"Δ=0:{(delta==0).sum()/total:.1%}, Δ=1:{(delta==1).sum()/total:.1%}, Δ=2:{(delta==2).sum()/total:.1%}"
+
+# Extract the string from visualizer and compress it for the Matplotlib chart layout
+stats_text = visualizer._calculate_stats().replace("Perfect (Δ=0)", "Δ=0").replace("Off by 1 (Δ=1)", "Δ=1").replace("Wrong (Δ=2)", "Δ=2")
+
 plt.figure()
 plt.bar(importance_series.index, importance_series.values)
 plt.text(0.98, 0.98, stats_text, transform=plt.gca().transAxes, ha='right', va='top', bbox=dict(facecolor='white', alpha=0.5))
