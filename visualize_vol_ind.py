@@ -9,8 +9,7 @@ import yfinance as yf
 import databento as dbn
 
 # Import functions from other project files
-from features.vol_indicator import calculate_m_indicator, calculate_direction_scores
-from visualize_daily import load_daily_data
+from features.indicators import m_indicators
 
 # --- Configuration ---
 # For loading 1-minute data
@@ -20,12 +19,13 @@ FILE_PATH = os.path.join(DATA_DIR, FILE_NAME)
 
 # For loading daily data and plotting
 TICKER = "TSLA"
-START_DATE = "2025-01-01"
-END_DATE = "2026-01-01"
-METHOD = 'co_ma'
+START_DATE = "2025-04-01"
+END_DATE = "2025-09-01"
+METHOD = 'hl'
 # Indicator parameters
-M_INDICATOR_WINDOW = 3
-N_DAY_WINDOW = 10 # Window for moving average of M-stats
+M_INDICATOR_WINDOW = 1
+N_DAY_WINDOW = 20 # Window for moving average of M-stats
+BFAC = 0.5
 
 # --- Data Loading Functions (adapted from visualize_daily.py) ---
 
@@ -58,45 +58,29 @@ if daily_ohlc_df.empty:
 if isinstance(daily_ohlc_df.columns, pd.MultiIndex):
     daily_ohlc_df.columns = daily_ohlc_df.columns.get_level_values(0)
 
+daily_ohlc_df['unique_id'] = TICKER
+
 # 3. Iterate through each day to calculate M-indicator stats
-daily_stats = []
 print("Calculating daily M-indicator statistics...")
-for date, row in tqdm(daily_ohlc_df.iterrows(), total=len(daily_ohlc_df)):
-    date_str = date.strftime('%Y-%m-%d')
-    
-    intraday_df = load_daily_data(full_1m_df, date_str)
-    
-    if not intraday_df.empty:
-        m_indicator = calculate_m_indicator(intraday_df, n=M_INDICATOR_WINDOW,method = METHOD,filter='hard')
-        
-        # Calculate the two direction scores
-        vwap_score, mwap_score = calculate_direction_scores(intraday_df, m_indicator, n=M_INDICATOR_WINDOW )
-        
-        # Filter for absolute values greater than a preset threshold (0 for now)
-        m_threshold = 0
-        filtered_m = m_indicator[m_indicator.abs() > m_threshold]
-
-        if not filtered_m.empty:
-            daily_stats.append({'date': date, 'vwap_score': vwap_score, 'mwap_score': mwap_score, 'm_std': filtered_m.std(),
-                                'm_avg': filtered_m.mean()})
-
-        else:
-            # If no values meet the criteria, append NaN
-            daily_stats.append({'date': date, 'vwap_score': np.nan, 'mwap_score': np.nan, 'm_std': np.nan})
-    else:
-        daily_stats.append({'date': date, 'vwap_score': np.nan, 'mwap_score': np.nan, 'm_std': np.nan})
+m_features_df = m_indicators(
+    daily_ohlc_df,
+    target_tickers=[TICKER],
+    intraday_df=full_1m_df,
+    m_window=M_INDICATOR_WINDOW,
+    n_day_window=N_DAY_WINDOW,
+    bfac=BFAC,
+    method=METHOD,
+    filter_type='tanh',
+    energy_type='square'
+)
 #%%
 # 4. Process the calculated stats
-m_stats_df = pd.DataFrame(daily_stats).set_index('date')
+plot_df = daily_ohlc_df.join(m_features_df)
 
-m_std_ma = m_stats_df['m_std'].rolling(window=N_DAY_WINDOW).mean()
-
-m_std_std_roll = m_stats_df['m_std'].rolling(window=N_DAY_WINDOW).std()
-bfac = 1
-m_stats_df['m_std_upper'] = m_std_ma + bfac * m_std_std_roll
-m_stats_df['m_std_br'] = (m_stats_df['m_std'] - m_std_ma) / m_std_std_roll
-print(m_stats_df['m_std_br'])
-plot_df = daily_ohlc_df.join(m_stats_df)
+vol_mean = plot_df['Volume'].rolling(window=N_DAY_WINDOW).mean()
+vol_std = plot_df['Volume'].rolling(window=N_DAY_WINDOW).std()
+vol_upper = vol_mean + BFAC * vol_std
+plot_df['vol_diff'] = (plot_df['Volume'] - vol_upper) / vol_upper
 #%%
 # 5. Plotting
 print("Generating plot...")
@@ -105,7 +89,7 @@ fig = make_subplots(
     shared_xaxes=True,
     vertical_spacing=0.03,
     row_heights=[0.4, 0.15, 0.15, 0.15, 0.15],
-    subplot_titles=(f"{TICKER} Daily Price", "VWAP Score", "MWAP - VWAP Score", "M-Indicator Std", "Volume")
+    subplot_titles=(f"{TICKER} Daily Price", "VWAP Score", "MWAP - VWAP Score", "M-Indicator Std Diff", "Volume Diff")
 )
 
 fig.add_trace(go.Candlestick(
@@ -114,15 +98,15 @@ fig.add_trace(go.Candlestick(
 ), row=1, col=1)
 
 fig.add_trace(go.Bar(
-    x=plot_df.index, y=plot_df['m_avg'], name='M mean', marker_color='blue'
+    x=plot_df.index, y=plot_df['vwap_score'], name='VWAP Score', marker_color='blue'
 ), row=2, col=1)
 
 fig.add_trace(go.Bar(
-    x=plot_df.index, y=plot_df['mwap_score'] - plot_df['vwap_score'], name='MWAP Diff', marker_color='orange'
+    x=plot_df.index, y=plot_df['mwap_diff'], name='MWAP Diff', marker_color='orange'
 ), row=3, col=1)
 
 fig.add_trace(go.Bar(
-    x=plot_df.index, y=plot_df['m_std']-plot_df['m_std_upper'], name='M Std', marker_color='magenta'
+    x=plot_df.index, y=plot_df['m_std_diff'], name='M Std Diff', marker_color='magenta'
 ), row=4, col=1)
 
 #fig.add_trace(go.Scatter(
@@ -130,7 +114,7 @@ fig.add_trace(go.Bar(
 #), row=4, col=1)
 
 fig.add_trace(go.Bar(
-    x=plot_df.index, y=plot_df['Volume'], name='Volume', marker_color='lightblue'
+    x=plot_df.index, y=plot_df['vol_diff'], name='Volume Diff', marker_color='lightblue'
 ), row=5, col=1)
 
 fig.update_layout(
@@ -145,8 +129,8 @@ fig.update_xaxes(
 fig.update_yaxes(title_text="Price (USD)", row=1, col=1)
 fig.update_yaxes(title_text="VWAP Score", row=2, col=1)
 fig.update_yaxes(title_text="MWAP Diff", row=3, col=1)
-fig.update_yaxes(title_text="M Std", row=4, col=1)
-fig.update_yaxes(title_text="Volume", row=5, col=1)
+fig.update_yaxes(title_text="M Std Diff", row=4, col=1)
+fig.update_yaxes(title_text="Volume Diff", row=5, col=1)
 
 fig.show()
 # %%

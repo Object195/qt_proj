@@ -27,44 +27,58 @@ class BacktestVisualizer:
         self.plot_df = pd.merge(self.results_df, self.price_df, on='ds', how='inner')
         self.plot_df = self.plot_df.sort_values('ds')
 
-    def _calculate_stats(self) -> str:
+    def _calculate_stats(self, use_adjusted: bool = False) -> str:
         """Calculates performance statistics and returns them as a formatted string."""
         if self.plot_df is None or self.plot_df.empty:
             return "No data to calculate stats."
 
-        delta = np.abs(self.plot_df['Predicted_Label'] - self.plot_df['True_Label'])
-        total_points = len(delta)
-        perf_0 = (delta == 0).sum() / total_points
-        perf_1 = (delta == 1).sum() / total_points
-        perf_2 = (delta == 2).sum() / total_points
+        def calc_metrics(label_col):
+            delta = np.abs(self.plot_df[label_col] - self.plot_df['True_Label'])
+            total_points = len(delta)
+            perf_0 = (delta == 0).sum() / total_points
+            perf_1 = (delta == 1).sum() / total_points
+            perf_2 = (delta == 2).sum() / total_points
+            
+            position = self.plot_df[label_col] - 1
+            daily_ret = self.plot_df['close'].pct_change()
+            strat_ret = position.shift(1) * daily_ret
+            cum_ret = (1 + strat_ret.fillna(0)).cumprod()
+            final_ret = cum_ret.iloc[-1] - 1 if not cum_ret.empty else 0
+            return perf_0, perf_1, perf_2, final_ret, cum_ret
 
-        # Debugging: Print label distributions to verify if the model is guessing conservatively
+        # Calculate Original Metrics
+        o_p0, o_p1, o_p2, o_ret, o_cum = calc_metrics('Predicted_Label')
+        orig_str = f"Perfect (Δ=0): {o_p0:.2%}, Off by 1 (Δ=1): {o_p1:.2%}, Wrong (Δ=2): {o_p2:.2%} | Sim Return: {o_ret:.2%}"
+        print(f"\nOriginal Stats: {orig_str}")
+        
+        # Print label distributions
         true_dist = self.plot_df['True_Label'].value_counts(normalize=True).sort_index().to_dict()
         pred_dist = self.plot_df['Predicted_Label'].value_counts(normalize=True).sort_index().to_dict()
-        print(f"\n[Distribution] True Labels: {true_dist}")
-        print(f"[Distribution] Predicted Labels: {pred_dist}\n")
+        print(f"[Distribution] True Labels: {true_dist}")
+        print(f"[Distribution] Orig Predicted Labels: {pred_dist}")
 
-        # Vectorized simulated return calculation
-        self.plot_df['Position'] = self.plot_df['Predicted_Label'] - 1
-        self.plot_df['Daily_Return'] = self.plot_df['close'].pct_change()
-        self.plot_df['Strategy_Return'] = self.plot_df['Position'].shift(1) * self.plot_df['Daily_Return']
-        
-        # --- ALTERNATIVE (More Realistic Execution) ---
-        # If you enter at the Open of day 't' (after getting signal at Close 't-1')
-        # and exit at the Close of day 't', use this instead:
-        # daily_open_to_close = (self.plot_df['close'] - self.plot_df['open']) / self.plot_df['open']
-        # self.plot_df['Strategy_Return'] = self.plot_df['Position'].shift(1) * daily_open_to_close
-        
-        self.plot_df['Cumulative_Return'] = (1 + self.plot_df['Strategy_Return'].fillna(0)).cumprod()
-        
-        final_return = self.plot_df['Cumulative_Return'].iloc[-1] - 1
-        return_str = f" | Sim Return: {final_return:.2%}"
+        # Calculate Adjusted Metrics (if available)
+        if 'Adjusted_Predicted_Label' in self.plot_df.columns:
+            a_p0, a_p1, a_p2, a_ret, a_cum = calc_metrics('Adjusted_Predicted_Label')
+            adj_str = f"Perfect (Δ=0): {a_p0:.2%}, Off by 1 (Δ=1): {a_p1:.2%}, Wrong (Δ=2): {a_p2:.2%} | Sim Return: {a_ret:.2%}"
+            print(f"Adjusted Stats: {adj_str}")
+            
+            adj_pred_dist = self.plot_df['Adjusted_Predicted_Label'].value_counts(normalize=True).sort_index().to_dict()
+            print(f"[Distribution] Adj  Predicted Labels: {adj_pred_dist}\n")
+        else:
+            adj_str = orig_str
+            a_cum = o_cum
 
-        stats_str = f"Perfect (Δ=0): {perf_0:.2%}, Off by 1 (Δ=1): {perf_1:.2%}, Wrong (Δ=2): {perf_2:.2%}{return_str}"
-        print(f"Performance Stats: {stats_str}")
-        return stats_str
+        if use_adjusted and 'Adjusted_Predicted_Label' in self.plot_df.columns:
+            self.plot_df['Display_Label'] = self.plot_df['Adjusted_Predicted_Label']
+            self.plot_df['Cumulative_Return'] = a_cum
+            return "Adj - " + adj_str
+        else:
+            self.plot_df['Display_Label'] = self.plot_df['Predicted_Label']
+            self.plot_df['Cumulative_Return'] = o_cum
+            return orig_str
 
-    def plot(self, title_suffix: str):
+    def plot(self, title_suffix: str, use_adjusted: bool = False):
         """Generates and displays the backtest visualization plot."""
         self._prepare_plot_data()
         
@@ -72,7 +86,7 @@ class BacktestVisualizer:
             print("No data available for plotting.")
             return
 
-        stats_str = self._calculate_stats()
+        stats_str = self._calculate_stats(use_adjusted)
 
         fig = make_subplots(
             rows=3, cols=1,
@@ -107,8 +121,8 @@ class BacktestVisualizer:
         ), row=1, col=1)
 
         # Add Predicted Signals
-        pred_buys = self.plot_df[self.plot_df['Predicted_Label'] == 2]
-        pred_sells = self.plot_df[self.plot_df['Predicted_Label'] == 0]
+        pred_buys = self.plot_df[self.plot_df['Display_Label'] == 2]
+        pred_sells = self.plot_df[self.plot_df['Display_Label'] == 0]
 
         fig.add_trace(go.Scatter(
             x=pred_buys['ds'], y=pred_buys['low'] * 0.98,

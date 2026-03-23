@@ -18,6 +18,7 @@ def calculate_m_indicator(df: pd.DataFrame, n: int, method:str,filter:str) -> pd
     if not all(col in df.columns for col in ['open', 'close', 'volume']):
         raise ValueError("Input DataFrame must contain 'open', 'close', and 'volume' columns.")
     dv = df['volume']/df['volume'].mean()
+    #dv = df['volume']/1e6
     #determine the sign, replace 0
     dp_sign = np.sign(df['close']-df['open']).replace(0, np.nan).bfill()
     # 2. If at the end of sequence, compare upper and lower wicks

@@ -8,14 +8,14 @@ PIPELINE = {
     'fetch_end_date': '2026-03-12',
     
     # 2. TRAINING/TESTING DATES (The actual period we care about modeling)
-    'train_start_date': '2021-03-01',
+    'train_start_date': '2021-03-12',
     'train_end_date': '2024-03-12',
     'test_start_date': '2024-10-12',
     'test_end_date': '2026-03-12',
     
     'interval': '1d',
-    'input_window': 25,
-    'forecast_horizon': 3,
+    'input_window': 20,
+    'forecast_horizon': 5,
     'save_config_with_timestamp': False, # Toggle to save unique config copies per run
 }
 
@@ -35,8 +35,8 @@ FEATURES = [
     #{'name': 'relative_to_spy', 'type': 'custom', 'function': 'relative_strength', 'params': {'benchmark': 'SPY'}},
 
     # Momentum
-    {'name': 'macd_hist', 'type': 'custom', 'function': 'macd_histogram', 'params': {'fast': 12, 'slow': 26, 'signal': 9}},
-    {'name': 'rsi', 'type': 'custom', 'function': 'rsi', 'params': {'length': 14}},
+    {'name': ['macd_line', 'macd_hist'], 'type': 'custom', 'function': 'macd', 'params': {'fast': 12, 'slow': 26, 'signal': 9}},
+    {'name': ['rsi', 'rsi_dist'], 'type': 'custom', 'function': 'rsi', 'params': {'length': 14}},
     
     # Volume
     {'name': 'rvol', 'type': 'custom', 'function': 'relative_volume', 'params': {'length': 20}},
@@ -53,28 +53,30 @@ FEATURES = [
     {'name': ['m_std_diff', 'vwap_score', 'mwap_diff'], 'type': 'custom', 'function': 'm_indicators', 'params': {'m_window': 3, 'n_day_window': 10, 'bfac': 1, 'method': 'co_ma', 'filter_type': 'tanh'}},
 
     # Target Generation
-    {'name': 'Target_VATC', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 20, 'multiplier': 0.5}},
+    {'name': 'Target_VATC', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 10, 'multiplier': 1}},
 ]
 
 SELECTED_FEATURES = [
-    'up_wick',
-    'low_wick',
-    'ema_bias_5',
-    'ema_bias_20',
-    'ema_bias_50',
-    'ema_bias_100',
-    'ema_bias_200',
+    #'up_wick',
+    #'low_wick',
+    #'ema_bias_5',
+    #'ema_bias_20',
+    #'ema_bias_50',
+    #'ema_bias_100',
+    #'ema_bias_200',
+    'macd_line',
     'macd_hist',
-    'rsi',
-    'rvol',
-    'mfi',
-    'bb_bandwidth',
-    'natr',
-    'vwd_support',
-    'vwd_resistance',
-    'm_std_diff',
-    'vwap_score',
-    'mwap_diff'
+    #'rsi',
+    #'rsi_dist',
+    #'rvol',
+    #'mfi',
+    #'bb_bandwidth',
+    #'natr',
+    #'vwd_support',
+    #'vwd_resistance',
+    #'m_std_diff',
+    #'vwap_score',
+    #'mwap_diff'
 ]
 
 TARGET_COL = 'Target_VATC'
@@ -88,7 +90,7 @@ PATCHTST_PARAMS = {
     'stride': 10,
     'dropout': 0.3,
     'batch_size': 32,
-    'epochs': 75,
+    'epochs': 100,
     'learning_rate': 1e-4
 }
 

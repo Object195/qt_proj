@@ -9,6 +9,8 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt 
 import plotly.graph_objects as go
+import pickle
+from features.feature_processor import FeatureProcessor
 # from config import PIPELINE, FEATURES # This will be replaced by dynamic import
 from backtest_visualizer import BacktestVisualizer
 
@@ -65,6 +67,9 @@ VIEW_MODE = 'test'
 CUSTOM_START = '2023-06-01'
 CUSTOM_END = '2024-06-01'
 
+CONFIDENCE_THRESHOLD = 0.35  # Probability required to trigger a Buy/Sell signal
+USE_ADJUSTED_PLOT = False     # Toggle to use adjusted predictions for visualization and equity
+
 train_start = pd.to_datetime(PIPELINE['train_start_date'])
 train_end = pd.to_datetime(PIPELINE['train_end_date'])
 if 'test_start_date' in PIPELINE:
@@ -106,6 +111,11 @@ if device == 'cuda':
     all_probs = cp.asnumpy(all_probs)
     predicted_labels = cp.asnumpy(predicted_labels)
 
+# Calculate adjusted predictions mapping low-confidence guesses to Neutral (1)
+adjusted_predicted_labels = np.ones_like(predicted_labels)
+adjusted_predicted_labels[(predicted_labels == 0) & (all_probs[:, 0] > CONFIDENCE_THRESHOLD)] = 0
+adjusted_predicted_labels[(predicted_labels == 2) & (all_probs[:, 2] > CONFIDENCE_THRESHOLD)] = 2
+
 # 3. Prepare DataFrame for Visualization
 df_prices = pd.read_csv('processed_data.csv')
 
@@ -115,77 +125,67 @@ results_df = pd.DataFrame({
     'Prob_Neutral': all_probs[:, 1],
     'Prob_Up': all_probs[:, 2],
     'True_Label': y_eval,
-    'Predicted_Label': predicted_labels
+    'Predicted_Label': predicted_labels,
+    'Adjusted_Predicted_Label': adjusted_predicted_labels
 })
 
 # 4. Candlestick Visualization
 visualizer = BacktestVisualizer(results_df, df_prices)
-visualizer.plot(title_suffix=title_suffix)
+visualizer.plot(title_suffix=title_suffix, use_adjusted=USE_ADJUSTED_PLOT)
 #%%
 # 5. Feature Importance Analysis
 print("\nCalculating and plotting feature importance...")
 
-# Get original feature names and model parameters from config
-feature_names = []
-for f in FEATURES:
-    if f['name'] == 'Target_VATC': continue
-    if isinstance(f['name'], list):
-        feature_names.extend(f['name'])
-    else:
-        feature_names.append(f['name'])
-window_size = PIPELINE['input_window']
-num_original_features = len(feature_names)
+try:
+    with open('feature_processor.pkl', 'rb') as f:
+        processor = pickle.load(f)
+    feature_names = processor.feature_names
+except FileNotFoundError:
+    print("feature_processor.pkl not found. Cannot calculate feature importance.")
+    processor = None
+    feature_names = []
 
-# XGBoost provides importance as a dictionary {'f0': gain, 'f1': gain, ...}
-# We need to map these flattened feature indices back to our original features.
-booster = model.get_booster()
-importance = booster.get_score(importance_type='gain')
-
-grouped_importance = {name: 0.0 for name in feature_names}
-
-
-for f_idx_str, gain in importance.items():
-    # The feature index 'f_idx_str' is like 'f123'
-    f_idx = int(f_idx_str.lstrip('f'))
+if processor is not None and feature_names:
+    booster = model.get_booster()
+    importance = booster.get_score(importance_type='gain')
     
-    # The data is flattened from a (window_size, num_features) matrix.
-    # Numpy's flatten is row-major, so the pattern is [feat1_day1, feat2_day1, ..., feat1_day2, ...].
-    # The modulo operator correctly maps the flattened index back to the original feature column index.
-    original_feature_index = f_idx % num_original_features
-    original_feature_name = feature_names[original_feature_index]
-    
-    grouped_importance[original_feature_name] += gain
+    feature_importance_dict = {}
+    for f_idx_str, gain in importance.items():
+        f_idx = int(f_idx_str.lstrip('f'))
+        if f_idx < len(feature_names):
+            feature_importance_dict[feature_names[f_idx]] = gain
+            
+    importance_series = processor.calculate_grouped_importance(feature_importance_dict)
 
-# Create a pandas Series for easy sorting and plotting
-importance_series = pd.Series(grouped_importance).sort_values(ascending=False)
+    stats_text = visualizer._calculate_stats(use_adjusted=USE_ADJUSTED_PLOT).replace("Perfect (Δ=0)", "Δ=0").replace("Off by 1 (Δ=1)", "Δ=1").replace("Wrong (Δ=2)", "Δ=2")
+
+    plt.figure(figsize=(10, 6))
+    plt.bar(importance_series.index, importance_series.values, color='skyblue')
+    plt.text(0.98, 0.98, stats_text, transform=plt.gca().transAxes, ha='right', va='top', bbox=dict(facecolor='white', alpha=0.8))
+    plt.grid(axis='y', linestyle='--', alpha=0.7)
+    plt.xticks(rotation=45, ha='right')
+    plt.title('Grouped Feature Importance (Normalized Total Gain)')
+    plt.ylabel('Normalized Total Gain')
+    plt.tight_layout()
+    plt.show()
 #%%
-# Normalize by sum of all gains
-total_gain_sum = importance_series.sum()
-if total_gain_sum > 0:
-    importance_series = importance_series / total_gain_sum
-
-importance_series = importance_series[importance_series > 0]
-
-# Extract the string from visualizer and compress it for the Matplotlib chart layout
-stats_text = visualizer._calculate_stats().replace("Perfect (Δ=0)", "Δ=0").replace("Off by 1 (Δ=1)", "Δ=1").replace("Wrong (Δ=2)", "Δ=2")
-
-plt.figure()
-plt.bar(importance_series.index, importance_series.values)
-plt.text(0.98, 0.98, stats_text, transform=plt.gca().transAxes, ha='right', va='top', bbox=dict(facecolor='white', alpha=0.5))
-plt.grid()
-plt.xticks(rotation=90)
-plt.show()
-#plt.tight_layout()
-'''
-# Plotting with Plotly
-fig = go.Figure([go.Bar(x=importance_series.index, y=importance_series.values, marker_color='#636EFA')])
-fig.update_layout(
-    title='Grouped Feature Importance (Normalized Total Gain)',
-    xaxis_title='Feature',
-    yaxis_title='Normalized Total Gain',
-    #yaxis=dict(type='log'),
-    template='plotly_dark'
-)
-fig.show()
-'''
+    # 6. Detailed Feature Importance for a Specific Group
+    selected_group = 'ema_bias_5' # Change this to inspect other groups
+    print(f"\nPlotting detailed feature importance for selected group: {selected_group}...")
+    
+    try:
+        detailed_series = processor.calculate_individual_importance(feature_importance_dict, selected_group)
+        if not detailed_series.empty:
+            plt.figure(figsize=(10, 6))
+            plt.bar(detailed_series.index, detailed_series.values, color='lightgreen')
+            plt.grid(axis='y', linestyle='--', alpha=0.7)
+            plt.xticks(rotation=45, ha='right')
+            plt.title(f'Detailed Feature Importance for Group: {selected_group} (Normalized Total Gain)')
+            plt.ylabel('Normalized Total Gain')
+            plt.tight_layout()
+            plt.show()
+        else:
+            print(f"No positive gain found for features in group '{selected_group}'.")
+    except ValueError as e:
+        print(e)
 # %%

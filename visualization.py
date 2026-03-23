@@ -8,7 +8,7 @@ import pickle
 import numpy as np
 
 # 1. Load the processed data
-df = pd.read_csv('processed_data.csv')
+df = pd.read_csv('processed_data_v2.csv')
 df['ds'] = pd.to_datetime(df['ds'])
 
 # 2. Define ranges from config
@@ -22,10 +22,10 @@ test_end = pd.to_datetime(PIPELINE.get('test_end_date', PIPELINE['fetch_end_date
 
 # 3. Selection: Choose 'full', 'train', 'test', or 'custom'
 # Change these variables to filter the view
-VIEW_MODE = 'test' 
-CUSTOM_START = '2023-01-01'
-CUSTOM_END = '2024-01-01'
-
+VIEW_MODE = 'custom' 
+CUSTOM_START = '2024-08-01'
+CUSTOM_END = '2025-10-25'
+show_sr = False
 if VIEW_MODE == 'train':
     plot_df = df[(df['ds'] >= train_start) & (df['ds'] <= train_end)].copy()
     title_suffix = f"Training Set ({PIPELINE['train_start_date']} to {PIPELINE['train_end_date']})"
@@ -41,8 +41,10 @@ else:
 
 # 4. Visualization Settings
 OVERLAY_INDICATORS = []
+SUBPLOT_INDICATORS = ['log_return_hurst_256_8']
+#SUBPLOT_INDICATORS = ['macd_hist','macd_hist_cd', 'macd_hist_cu', 'macd_hist_c_tot']
 #SUBPLOT_INDICATORS = ['ema_bias_200', 'rsi', 'vwd_support', 'vwd_resistance','m_std_diff', 'vwap_score', 'mwap_diff', 'Target_VATC']
-SUBPLOT_INDICATORS = ['vwd_support', 'vwd_resistance', 'Target_VATC']
+#SUBPLOT_INDICATORS = ['vwd_support', 'vwd_resistance', 'Target_VATC']
 
 for ticker in PIPELINE.get('target_tickers', []):
     ticker_data = plot_df[plot_df['unique_id'] == ticker]
@@ -101,33 +103,34 @@ for ticker in PIPELINE.get('target_tickers', []):
                 fig.update_yaxes(range=[0, max_val * 1.05 if pd.notna(max_val) and max_val > 0 else 1], row=i, col=1)
 
     # 5. Overlay SR Levels from Saved PKL
-    sr_file = f'sr_history_{ticker}.pkl'
-    if os.path.exists(sr_file):
-        with open(sr_file, 'rb') as f:
-            sr_history = pickle.load(f)
-            
-        sr_levels = sr_history[-1] if sr_history else pd.DataFrame()
-        n_trunc = 30
-        if not sr_levels.empty:
-            price_min = ticker_data['low'].min()
-            price_max = ticker_data['high'].max()
-            sr_levels = sr_levels[(sr_levels['M'] >= price_min) & (sr_levels['M'] <= price_max)]
-            
-            sr_levels = sr_levels.sort_values(by='V', ascending=False).head(n_trunc)
-            max_vol = sr_levels['V'].max() if not sr_levels.empty else 1.0
-            avg_vol = sr_levels['V'].mean() if not sr_levels.empty else 1.0
-
-            for _, row in sr_levels.iterrows():
-                level = row['M']
-                vol = row['V']
-                sigma = np.sqrt(row['S'] / row['V']) if row['V'] > 0 else 0
+    if show_sr:
+        sr_file = f'sr_history_{ticker}.pkl'
+        if os.path.exists(sr_file):
+            with open(sr_file, 'rb') as f:
+                sr_history = pickle.load(f)
                 
-                opacity = 0.2 + 0.8 * (vol / max_vol)
-                rel_vol = vol / avg_vol
-                count = int(row.get('count', 1))
+            sr_levels = sr_history[-1] if sr_history else pd.DataFrame()
+            n_trunc = 30
+            if not sr_levels.empty:
+                price_min = ticker_data['low'].min()
+                price_max = ticker_data['high'].max()
+                sr_levels = sr_levels[(sr_levels['M'] >= price_min) & (sr_levels['M'] <= price_max)]
+                
+                sr_levels = sr_levels.sort_values(by='V', ascending=False).head(n_trunc)
+                max_vol = sr_levels['V'].max() if not sr_levels.empty else 1.0
+                avg_vol = sr_levels['V'].mean() if not sr_levels.empty else 1.0
 
-                fig.add_hline(y=level, line_dash="dash", line_color="cyan", opacity=opacity, annotation_text=f"{level:.1f} | Vol: {rel_vol:.2f} | N: {count}", row=1, col=1)
-                fig.add_hrect(y0=level - sigma, y1=level + sigma, line_width=0, fillcolor="cyan", opacity=opacity * 0.2, row=1, col=1)
+                for _, row in sr_levels.iterrows():
+                    level = row['M']
+                    vol = row['V']
+                    sigma = np.sqrt(row['S'] / row['V']) if row['V'] > 0 else 0
+                    
+                    opacity = 0.2 + 0.8 * (vol / max_vol)
+                    rel_vol = vol / avg_vol
+                    count = int(row.get('count', 1))
+
+                    fig.add_hline(y=level, line_dash="dash", line_color="cyan", opacity=opacity, annotation_text=f"{level:.1f} | Vol: {rel_vol:.2f} | N: {count}", row=1, col=1)
+                    fig.add_hrect(y0=level - sigma, y1=level + sigma, line_width=0, fillcolor="cyan", opacity=opacity * 0.2, row=1, col=1)
 
     fig.update_layout(
         title=f'{ticker} Analysis - {title_suffix}',
@@ -135,5 +138,7 @@ for ticker in PIPELINE.get('target_tickers', []):
         xaxis_rangeslider_visible=False,
         height=400 + (200 * len(SUBPLOT_INDICATORS))
     )
+    fig.update_xaxes(rangeslider_visible=False)
+    
     fig.show()
 # %%

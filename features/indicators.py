@@ -99,8 +99,8 @@ def relative_strength(df: pd.DataFrame, **kwargs) -> pd.Series:
     # 3. Calculate the ratio
     return df_t['close'] / mapped_bench
 
-def macd_histogram(df: pd.DataFrame, **kwargs) -> pd.Series:
-    """MACD Histogram: The raw value of the MACD histogram bar."""
+def macd(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    """MACD: Outputs MACD line and MACD histogram."""
     fast = kwargs.get('fast', 12)
     slow = kwargs.get('slow', 26)
     signal = kwargs.get('signal', 9)
@@ -109,17 +109,28 @@ def macd_histogram(df: pd.DataFrame, **kwargs) -> pd.Series:
     
     def _calc(x):
         res = x.ta.macd(fast=fast, slow=slow, signal=signal)
-        if res is None or res.empty: return pd.Series(index=x.index, dtype=float)
-        return res.filter(like='MACDh').iloc[:, 0]
+        if res is None or res.empty: 
+            return pd.DataFrame(index=x.index, columns=['macd_line', 'macd_hist'], dtype=float)
+        return pd.DataFrame({
+            'macd_line': res.filter(like='MACD_').iloc[:, 0],
+            'macd_hist': res.filter(like='MACDh').iloc[:, 0]
+        })
         
-    return df[mask].groupby('unique_id', group_keys=False).apply(_calc, include_groups=False).squeeze()
+    return df[mask].groupby('unique_id', group_keys=False).apply(_calc, include_groups=False)
 
-def rsi(df: pd.DataFrame, **kwargs) -> pd.Series:
+def rsi(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
     """Relative Strength Index (RSI)"""
     length = kwargs.get('length', 14)
     targets = kwargs.get('target_tickers', df['unique_id'].unique())
     mask = df['unique_id'].isin(targets)
-    return df[mask].groupby('unique_id', group_keys=False).apply(lambda x: x.ta.rsi(length=length), include_groups=False).squeeze()
+    
+    rsi_series = df[mask].groupby('unique_id', group_keys=False).apply(lambda x: x.ta.rsi(length=length), include_groups=False).squeeze()
+    
+    out_df = pd.DataFrame(index=df.index, columns=['rsi', 'rsi_dist'], dtype=float)
+    out_df.loc[mask, 'rsi'] = rsi_series
+    out_df.loc[mask, 'rsi_dist'] = (rsi_series - 50).abs()
+    
+    return out_df
 
 def relative_volume(df: pd.DataFrame, **kwargs) -> pd.Series:
     """Relative Volume (RVOL): Volume_t / SMA_20(Volume)"""
@@ -280,6 +291,7 @@ def m_indicators(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
     bfac = kwargs.get('bfac', 1)
     method = kwargs.get('method', 'hl')
     filter_type = kwargs.get('filter_type', 'hard')
+    energy_type = kwargs.get('energy_type', 'std')
     
     if intraday_df is None or intraday_df.empty:
         print("Warning: intraday_df is not provided or empty. Returning empty M features.")
@@ -295,15 +307,15 @@ def m_indicators(df: pd.DataFrame, **kwargs) -> pd.DataFrame:
         df_ticker = df[mask].copy()
         
         if 'ds' in df_ticker.columns:
-            dates = pd.to_datetime(df_ticker['ds'])
+            dates = pd.to_datetime(df_ticker['ds']).tolist()
         else:
-            dates = pd.to_datetime(df_ticker.index)
+            dates = pd.to_datetime(df_ticker.index).tolist()
             
         daily_stats = []
         ticker_indices = df_ticker.index
         
         for i in tqdm(range(len(df_ticker)), desc=f"Calculating M features for {ticker}"):
-            date_str = dates.iloc[i].strftime('%Y-%m-%d')
+            date_str = dates[i].strftime('%Y-%m-%d')
             daily_1m = load_daily_data(intraday_df, date_str)
             
             if not daily_1m.empty:

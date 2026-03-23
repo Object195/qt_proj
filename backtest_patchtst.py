@@ -93,6 +93,9 @@ VIEW_MODE = 'test'
 CUSTOM_START = '2023-06-01'
 CUSTOM_END = '2024-06-01'
 
+CONFIDENCE_THRESHOLD = 0.55  # Probability required to trigger a Buy/Sell signal
+USE_ADJUSTED_PLOT = True     # Toggle to use adjusted predictions for visualization and equity
+
 train_start = pd.to_datetime(PIPELINE['train_start_date'])
 train_end = pd.to_datetime(PIPELINE['train_end_date'])
 if 'test_start_date' in PIPELINE:
@@ -143,6 +146,11 @@ with torch.no_grad():
 all_probs = np.concatenate(probs_list, axis=0)
 predicted_labels = np.argmax(all_probs, axis=1)
 
+# Calculate adjusted predictions mapping low-confidence guesses to Neutral (1)
+adjusted_predicted_labels = np.ones_like(predicted_labels)
+adjusted_predicted_labels[(predicted_labels == 0) & (all_probs[:, 0] > CONFIDENCE_THRESHOLD)] = 0
+adjusted_predicted_labels[(predicted_labels == 2) & (all_probs[:, 2] > CONFIDENCE_THRESHOLD)] = 2
+
 # 3. Prepare DataFrame for Visualization
 # Load original processed data to get actual prices corresponding to the dates
 df_prices = pd.read_csv('processed_data.csv')
@@ -155,10 +163,11 @@ results_df = pd.DataFrame({
     'Prob_Neutral': all_probs[:, 1],
     'Prob_Up': all_probs[:, 2],
     'True_Label': y_eval.numpy(),
-    'Predicted_Label': predicted_labels
+    'Predicted_Label': predicted_labels,
+    'Adjusted_Predicted_Label': adjusted_predicted_labels
 })
 
 # 4. Candlestick Visualization
 visualizer = BacktestVisualizer(results_df, df_prices)
-visualizer.plot(title_suffix=title_suffix)
+visualizer.plot(title_suffix=title_suffix, use_adjusted=USE_ADJUSTED_PLOT)
 # %%

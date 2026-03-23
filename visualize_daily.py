@@ -21,8 +21,8 @@ TICKER = "TSLA"
 #SELECTED_DATE = "2024-12-18" # YYYY-MM-DD format
 #SELECTED_DATE = "2025-04-07" # YYYY-MM-DD format
 #SELECTED_DATE = "2025-07-01" # YYYY-MM-DD format
-SELECTED_DATE = "2025-03-31" # YYYY-MM-DD format
-M_INDICATOR_WINDOW = 3 # Window size for the M indicator EMA
+SELECTED_DATE = "2025-06-04" # YYYY-MM-DD format
+M_INDICATOR_WINDOW = 1 # Window size for the M indicator EMA
 
 # --- Main Script ---
 
@@ -94,7 +94,7 @@ def plot_intraday_candles(daily_df: pd.DataFrame, ticker: str, date_str: str):
 
     # Calculate the M indicator
     # This is done first, and the result is added as a new column to our plotting DataFrame.
-    plot_df['m_indicator'] = calculate_m_indicator(plot_df, n=M_INDICATOR_WINDOW,method='co_ma',filter='hard')
+    plot_df['m_indicator'] = calculate_m_indicator(plot_df, n=M_INDICATOR_WINDOW,method='hl',filter='tanh',)
     print('M value')
     print(plot_df['m_indicator'].mean())
     print('M variance')
