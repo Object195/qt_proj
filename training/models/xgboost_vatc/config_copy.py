@@ -4,27 +4,27 @@ PIPELINE = {
     'target_tickers': ['TSLA'],  # Only calculate features for these
     
     # 1. FETCHING DATES (Includes the "Burn-in" period for long-term indicators)
-    'fetch_start_date': '2020-06-12', 
+    'fetch_start_date': '2016-03-12', 
     'fetch_end_date': '2026-03-12',
     
     # 2. TRAINING/TESTING DATES (The actual period we care about modeling)
-    'train_start_date': '2021-03-12',
-    'train_end_date': '2024-03-12',
-    'test_start_date': '2024-04-12',
-    'test_end_date': '2025-04-12',
+    'train_start_date': '2019-02-12',
+    'train_end_date': '2022-02-12',
+    'test_start_date': '2022-03-12',
+    'test_end_date': '2023-03-12',
     
     'interval': '1d',
     'input_window': 25,
-    'forecast_horizon': 3,
+    'forecast_horizon': 2,
     'save_config_with_timestamp': False, # Toggle to save unique config copies per run
 }
 
 FEATURES = [
     #Raw price
-    #{'name': 'log_return', 'type': 'custom', 'function': 'log_return'},
+    {'name': 'log_return', 'type': 'custom', 'function': 'log_return'},
     {'name': 'up_wick', 'type': 'custom', 'function': 'upper_shadow_ratio'},
     {'name': 'low_wick', 'type': 'custom', 'function': 'lower_shadow_ratio'},
-    #{'name': 'body_range', 'type': 'custom', 'function': 'body_range_ratio'},
+    {'name': 'body_range', 'type': 'custom', 'function': 'body_range_ratio'},
     # Trend
     {'name': 'ema_bias_5', 'type': 'custom', 'function': 'ema_bias', 'params': {'length': 5}}, 
     {'name': 'ema_bias_20', 'type': 'custom', 'function': 'ema_bias', 'params': {'length': 20}}, 
@@ -36,8 +36,9 @@ FEATURES = [
 
     # Momentum
     {'name': ['macd_line', 'macd_hist'], 'type': 'custom', 'function': 'macd', 'params': {'fast': 12, 'slow': 26, 'signal': 9}},
-    {'name': ['rsi', 'rsi_dist'], 'type': 'custom', 'function': 'rsi', 'params': {'length': 14}},
-    
+    {'name': ['rsi_14', 'rsi_dist_14'], 'type': 'custom', 'function': 'rsi', 'params': {'length': 14}},
+    {'name': ['rsi_7', 'rsi_dist_7'], 'type': 'custom', 'function': 'rsi', 'params': {'length': 14}},
+    {'name': 'BBP', 'type': 'custom', 'function': 'bollinger_percent_b', 'params': {'length': 20, 'std': 2}},
     # Volume
     {'name': 'rvol', 'type': 'custom', 'function': 'relative_volume', 'params': {'length': 20}},
     {'name': 'mfi', 'type': 'custom', 'function': 'mfi', 'params': {'length': 14}},
@@ -47,36 +48,13 @@ FEATURES = [
     {'name': 'natr', 'type': 'custom', 'function': 'natr', 'params': {'length': 14}},
 
     # Support / Resistance
-    {'name': ['vwd_support', 'vwd_resistance'], 'type': 'custom', 'function': 'sr_vwd', 'params': {'n_levels': 3, 'weight_method': 'volume_ratio'}},
+    #{'name': ['vwd_support', 'vwd_resistance'], 'type': 'custom', 'function': 'sr_vwd', 'params': {'n_levels': 3, 'weight_method': 'volume_ratio'}},
 
     # Intraday M Features
-    {'name': ['m_std_diff', 'vwap_score', 'mwap_diff'], 'type': 'custom', 'function': 'm_indicators', 'params': {'m_window': 3, 'n_day_window': 10, 'bfac': 1, 'method': 'co_ma', 'filter_type': 'tanh'}},
+    #{'name': ['m_std_diff', 'vwap_score', 'mwap_diff'], 'type': 'custom', 'function': 'm_indicators', 'params': {'m_window': 3, 'n_day_window': 10, 'bfac': 1, 'method': 'co_ma', 'filter_type': 'tanh'}},
 
     # Target Generation
     {'name': 'Target_VATC', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 10, 'multiplier': 1}},
-]
-
-SELECTED_FEATURES = [
-    #'up_wick',
-    #'low_wick',
-    #'ema_bias_5',
-    #'ema_bias_20',
-    #'ema_bias_50',
-    #'ema_bias_100',
-    #'ema_bias_200',
-    'macd_line',
-    'macd_hist',
-    #'rsi',
-    #'rsi_dist',
-    #'rvol',
-    #'mfi',
-    #'bb_bandwidth',
-    #'natr',
-    #'vwd_support',
-    #'vwd_resistance',
-    #'m_std_diff',
-    #'vwap_score',
-    #'mwap_diff'
 ]
 
 TARGET_COL = 'Target_VATC'
