@@ -95,6 +95,7 @@ CUSTOM_END = '2024-06-01'
 
 CONFIDENCE_THRESHOLD = 0.55  # Probability required to trigger a Buy/Sell signal
 USE_ADJUSTED_PLOT = True     # Toggle to use adjusted predictions for visualization and equity
+NDAYS = PIPELINE.get('forecast_horizon', 5)
 
 train_start = pd.to_datetime(PIPELINE['train_start_date'])
 train_end = pd.to_datetime(PIPELINE['train_end_date'])
@@ -169,5 +170,5 @@ results_df = pd.DataFrame({
 
 # 4. Candlestick Visualization
 visualizer = BacktestVisualizer(results_df, df_prices)
-visualizer.plot(title_suffix=title_suffix, use_adjusted=USE_ADJUSTED_PLOT)
+visualizer.plot(title_suffix=title_suffix, use_adjusted=USE_ADJUSTED_PLOT, ndays=NDAYS)
 # %%

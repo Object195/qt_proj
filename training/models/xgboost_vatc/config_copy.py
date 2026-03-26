@@ -10,12 +10,12 @@ PIPELINE = {
     # 2. TRAINING/TESTING DATES (The actual period we care about modeling)
     'train_start_date': '2021-03-12',
     'train_end_date': '2024-03-12',
-    'test_start_date': '2024-10-12',
-    'test_end_date': '2026-03-12',
+    'test_start_date': '2024-04-12',
+    'test_end_date': '2025-04-12',
     
     'interval': '1d',
-    'input_window': 20,
-    'forecast_horizon': 5,
+    'input_window': 25,
+    'forecast_horizon': 3,
     'save_config_with_timestamp': False, # Toggle to save unique config copies per run
 }
 

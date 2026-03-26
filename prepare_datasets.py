@@ -90,28 +90,35 @@ def main(model_type='xgboost'):
     #cross events 
     df = processor.add_cross_events(df, 'macd_line',shift=0,period=15)
     df = processor.add_cross_events(df, 'macd_hist',shift=0,period=15)
-    if 'rsi' in df.columns:
-        df = processor.add_cross_events(df, 'rsi',shift = 50, period=15)
+    #df = processor.add_cross_events(df, 'BBP',shift=0.5,period=15)
+    #df = processor.add_cross_events(df, 'rsi_14',shift = 50, period=15)
+    #df = processor.add_cross_events(df, 'rsi_7',shift = 50, period=15)
+        
     if 'mfi' in df.columns:
         df = processor.add_cross_events(df, 'mfi',shift = 50, period=15)
 
     #spike events
-    if 'rsi' in df.columns:
-        df = processor.add_spike_events(df, 'rsi', shift = 70, above = True,full_statistic=False) 
-        df = processor.add_spike_events(df, 'rsi', shift = 30, above = False,full_statistic=False) 
+    df = processor.add_spike_events(df, 'rsi_14', shift = 70, above = True,full_statistic=False) 
+    df = processor.add_spike_events(df, 'rsi_14', shift = 30, above = False,full_statistic=False) 
+    df = processor.add_spike_events(df, 'rsi_7', shift = 70, above = True,full_statistic=False) 
+    df = processor.add_spike_events(df, 'rsi_7', shift = 30, above = False,full_statistic=False) 
+    
+    #df = processor.add_spike_events(df, 'BBP', shift = 1, above = True,full_statistic=False) 
+    #df = processor.add_spike_events(df, 'BBP', shift = 0, above = False,full_statistic=False) 
     if 'mfi' in df.columns:
         df = processor.add_spike_events(df, 'mfi', shift = 80, above = True,full_statistic=False) 
-        df = processor.add_spike_events(df, 'mfi', shift = 20, above = False,full_statistic=False) 
-    
-    #df = processor.add_spike_events(df, 'up_wick', shift = 0.5, above = True) 
-    #df = processor.add_spike_events(df, 'low_wick', shift = 0.5, above = True) 
+        df = processor.add_spike_events(df, 'mfi', shift = 20, above = False,full_statistic=False)
+
+    df = processor.add_spike_events(df, 'body_range', shift = 0.2, above = False) 
+    df = processor.add_spike_events(df, 'up_wick', shift = 0.8, above = True) 
+    df = processor.add_spike_events(df, 'low_wick', shift = 0.8, above = True) 
     #percentile
-    df = processor.add_rolling_percentile(df,'natr',256)
+    df = processor.add_rolling_percentile(df,'natr',128)
     #df = processor.add_rolling_percentile(df,'bb_bandwidth',200)
 
     #stochastic features 
     print('calculating stochastic features')
-    #df = processor.add_rolling_hurst(df, 'log_return', 256, num_lags=8)
+    df = processor.add_rolling_hurst(df, 'log_return', 128, num_lags=8)
     for col in STOCHASTIC_FEATURES:
         df = processor.add_rolling_acf( df,col, period= 25, lag = 1)    
     print(f"\nSuccessfully generated {len(processor.feature_names)} new features.")
@@ -179,5 +186,5 @@ def main(model_type='xgboost'):
         print(f"No data converter defined for model_type: {model_type}")
 
 if __name__ == '__main__':
-    MODEL_TYPE = 'patchtst' #'xgboost' # Options: 'patchtst', 'xgboost'
+    MODEL_TYPE ='xgboost' #'patchtst' # # Options: 'patchtst', 'xgboost'
     main(model_type=MODEL_TYPE)

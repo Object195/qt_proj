@@ -38,8 +38,13 @@ class FeatureEngineer:
                     result = func(df_featured, **params)
                     
                     if isinstance(name, list):
-                        for col_name in name:
-                            df_featured[col_name] = result[col_name]
+                        # If it returns a DataFrame with the correct number of columns, map by position
+                        if isinstance(result, pd.DataFrame) and len(result.columns) == len(name):
+                            for i, col_name in enumerate(name):
+                                df_featured[col_name] = result.iloc[:, i]
+                        else:
+                            for col_name in name:
+                                df_featured[col_name] = result[col_name]
                     else:
                         if isinstance(result, pd.DataFrame):
                             df_featured[name] = result.squeeze()

@@ -160,6 +160,20 @@ def bollinger_bandwidth(df: pd.DataFrame, **kwargs) -> pd.Series:
         
     return df[mask].groupby('unique_id', group_keys=False).apply(_calc, include_groups=False).squeeze()
 
+def bollinger_percent_b(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """Bollinger %B: (Price - Lower Band) / (Upper Band - Lower Band)"""
+    length = kwargs.get('length', 20)
+    std = kwargs.get('std', 2)
+    targets = kwargs.get('target_tickers', df['unique_id'].unique())
+    mask = df['unique_id'].isin(targets)
+    
+    def _calc(x):
+        res = x.ta.bbands(length=length, std=std)
+        if res is None or res.empty: return pd.Series(index=x.index, dtype=float)
+        return res.filter(like='BBP').iloc[:, 0]
+        
+    return df[mask].groupby('unique_id', group_keys=False).apply(_calc, include_groups=False).squeeze()
+
 def natr(df: pd.DataFrame, **kwargs) -> pd.Series:
     """Normalized Average True Range (NATR)"""
     length = kwargs.get('length', 14)

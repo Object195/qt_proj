@@ -29,8 +29,8 @@ raw_data = fetcher.fetch()
 DATA_DIR = r"D:\qt\data\TSLA"
 FILE_NAME = "xnas-itch-20180501-20260313.ohlcv-1m.dbn.zst"
 FILE_PATH = os.path.join(DATA_DIR, FILE_NAME)
-
-if os.path.exists(FILE_PATH):
+detect_sr = False
+if os.path.exists(FILE_PATH) and detect_sr:
     print(f"Loading 1-min data from {FILE_PATH}...")
     store = dbn.DBNStore.from_file(FILE_PATH)
     intraday_df = store.to_df()

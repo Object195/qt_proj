@@ -41,7 +41,7 @@ else:
 
 # 4. Visualization Settings
 OVERLAY_INDICATORS = []
-SUBPLOT_INDICATORS = ['log_return_hurst_256_8']
+SUBPLOT_INDICATORS = ['log_return_hurst_128_8']
 #SUBPLOT_INDICATORS = ['macd_hist','macd_hist_cd', 'macd_hist_cu', 'macd_hist_c_tot']
 #SUBPLOT_INDICATORS = ['ema_bias_200', 'rsi', 'vwd_support', 'vwd_resistance','m_std_diff', 'vwap_score', 'mwap_diff', 'Target_VATC']
 #SUBPLOT_INDICATORS = ['vwd_support', 'vwd_resistance', 'Target_VATC']

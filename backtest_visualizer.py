@@ -2,6 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
+from backtest_metrics import BacktestMetrics
 
 class BacktestVisualizer:
     def __init__(self, results_df: pd.DataFrame, price_df: pd.DataFrame):
@@ -27,28 +28,21 @@ class BacktestVisualizer:
         self.plot_df = pd.merge(self.results_df, self.price_df, on='ds', how='inner')
         self.plot_df = self.plot_df.sort_values('ds')
 
-    def _calculate_stats(self, use_adjusted: bool = False) -> str:
+    def _calculate_stats(self, use_adjusted: bool = False, ndays: int = 1) -> str:
         """Calculates performance statistics and returns them as a formatted string."""
         if self.plot_df is None or self.plot_df.empty:
             return "No data to calculate stats."
 
-        def calc_metrics(label_col):
-            delta = np.abs(self.plot_df[label_col] - self.plot_df['True_Label'])
-            total_points = len(delta)
-            perf_0 = (delta == 0).sum() / total_points
-            perf_1 = (delta == 1).sum() / total_points
-            perf_2 = (delta == 2).sum() / total_points
-            
-            position = self.plot_df[label_col] - 1
-            daily_ret = self.plot_df['close'].pct_change()
-            strat_ret = position.shift(1) * daily_ret
-            cum_ret = (1 + strat_ret.fillna(0)).cumprod()
-            final_ret = cum_ret.iloc[-1] - 1 if not cum_ret.empty else 0
-            return perf_0, perf_1, perf_2, final_ret, cum_ret
-
         # Calculate Original Metrics
-        o_p0, o_p1, o_p2, o_ret, o_cum = calc_metrics('Predicted_Label')
-        orig_str = f"Perfect (Δ=0): {o_p0:.2%}, Off by 1 (Δ=1): {o_p1:.2%}, Wrong (Δ=2): {o_p2:.2%} | Sim Return: {o_ret:.2%}"
+        orig_metrics = BacktestMetrics.calculate_performance(self.plot_df, 'Predicted_Label', ndays)
+        o_d0 = orig_metrics['delta_0']
+        o_d1 = orig_metrics['delta_1']
+        o_d2 = orig_metrics['delta_2']
+        o_ret = orig_metrics['final_return']
+        o_sharpe = orig_metrics['sharpe_ratio']
+        o_cum = orig_metrics['cumulative_return_series']
+        
+        orig_str = f"Signal Acc (Δ=0): {o_d0:.2%}, Miss (Δ=1): {o_d1:.2%}, Wrong (Δ=2): {o_d2:.2%} | Sim Return ({ndays}d): {o_ret:.2%} | Sharpe: {o_sharpe:.2f}"
         print(f"\nOriginal Stats: {orig_str}")
         
         # Print label distributions
@@ -59,8 +53,15 @@ class BacktestVisualizer:
 
         # Calculate Adjusted Metrics (if available)
         if 'Adjusted_Predicted_Label' in self.plot_df.columns:
-            a_p0, a_p1, a_p2, a_ret, a_cum = calc_metrics('Adjusted_Predicted_Label')
-            adj_str = f"Perfect (Δ=0): {a_p0:.2%}, Off by 1 (Δ=1): {a_p1:.2%}, Wrong (Δ=2): {a_p2:.2%} | Sim Return: {a_ret:.2%}"
+            adj_metrics = BacktestMetrics.calculate_performance(self.plot_df, 'Adjusted_Predicted_Label', ndays)
+            a_d0 = adj_metrics['delta_0']
+            a_d1 = adj_metrics['delta_1']
+            a_d2 = adj_metrics['delta_2']
+            a_ret = adj_metrics['final_return']
+            a_sharpe = adj_metrics['sharpe_ratio']
+            a_cum = adj_metrics['cumulative_return_series']
+            
+            adj_str = f"Signal Acc (Δ=0): {a_d0:.2%}, Miss (Δ=1): {a_d1:.2%}, Wrong (Δ=2): {a_d2:.2%} | Sim Return ({ndays}d): {a_ret:.2%} | Sharpe: {a_sharpe:.2f}"
             print(f"Adjusted Stats: {adj_str}")
             
             adj_pred_dist = self.plot_df['Adjusted_Predicted_Label'].value_counts(normalize=True).sort_index().to_dict()
@@ -78,7 +79,7 @@ class BacktestVisualizer:
             self.plot_df['Cumulative_Return'] = o_cum
             return orig_str
 
-    def plot(self, title_suffix: str, use_adjusted: bool = False):
+    def plot(self, title_suffix: str, use_adjusted: bool = False, ndays: int = 1):
         """Generates and displays the backtest visualization plot."""
         self._prepare_plot_data()
         
@@ -86,7 +87,7 @@ class BacktestVisualizer:
             print("No data available for plotting.")
             return
 
-        stats_str = self._calculate_stats(use_adjusted)
+        stats_str = self._calculate_stats(use_adjusted, ndays)
 
         fig = make_subplots(
             rows=3, cols=1,

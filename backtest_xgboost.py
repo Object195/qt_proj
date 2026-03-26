@@ -67,9 +67,10 @@ VIEW_MODE = 'test'
 CUSTOM_START = '2023-06-01'
 CUSTOM_END = '2024-06-01'
 
-CONFIDENCE_THRESHOLD = 0.35  # Probability required to trigger a Buy/Sell signal
+CONFIDENCE_THRESHOLD = 0.5  # Probability required to trigger a Buy/Sell signal
 USE_ADJUSTED_PLOT = False     # Toggle to use adjusted predictions for visualization and equity
-
+NDAYS = PIPELINE.get('forecast_horizon', 5)
+#NDAYS = 1
 train_start = pd.to_datetime(PIPELINE['train_start_date'])
 train_end = pd.to_datetime(PIPELINE['train_end_date'])
 if 'test_start_date' in PIPELINE:
@@ -131,7 +132,7 @@ results_df = pd.DataFrame({
 
 # 4. Candlestick Visualization
 visualizer = BacktestVisualizer(results_df, df_prices)
-visualizer.plot(title_suffix=title_suffix, use_adjusted=USE_ADJUSTED_PLOT)
+visualizer.plot(title_suffix=title_suffix, use_adjusted=USE_ADJUSTED_PLOT, ndays=NDAYS)
 #%%
 # 5. Feature Importance Analysis
 print("\nCalculating and plotting feature importance...")
@@ -157,7 +158,7 @@ if processor is not None and feature_names:
             
     importance_series = processor.calculate_grouped_importance(feature_importance_dict)
 
-    stats_text = visualizer._calculate_stats(use_adjusted=USE_ADJUSTED_PLOT).replace("Perfect (Δ=0)", "Δ=0").replace("Off by 1 (Δ=1)", "Δ=1").replace("Wrong (Δ=2)", "Δ=2")
+    stats_text = visualizer._calculate_stats(use_adjusted=USE_ADJUSTED_PLOT, ndays=NDAYS)
 
     plt.figure(figsize=(10, 6))
     plt.bar(importance_series.index, importance_series.values, color='skyblue')
@@ -170,7 +171,7 @@ if processor is not None and feature_names:
     plt.show()
 #%%
     # 6. Detailed Feature Importance for a Specific Group
-    selected_group = 'ema_bias_5' # Change this to inspect other groups
+    selected_group = 'BBP' # Change this to inspect other groups
     print(f"\nPlotting detailed feature importance for selected group: {selected_group}...")
     
     try:
