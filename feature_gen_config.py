@@ -6,7 +6,7 @@ RAW_FEATURES = [
     'ema_bias_20', 'ema_bias_50', 'ema_bias_100', 'ema_bias_200', # Trend
     'macd_hist', 'macd_line','rsi_14','rsi_7', # Momentum
     'rvol', 'mfi', # Volume
-    'BBP'
+    #'BBP'
     #'bb_bandwidth', 'natr', # Volatility
     # 'vwd_support', 'vwd_resistance',
     # 'm_std_diff',  'vwap_score',   'mwap_diff'

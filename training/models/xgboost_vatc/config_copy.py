@@ -8,10 +8,10 @@ PIPELINE = {
     'fetch_end_date': '2026-03-12',
     
     # 2. TRAINING/TESTING DATES (The actual period we care about modeling)
-    'train_start_date': '2019-02-12',
-    'train_end_date': '2022-02-12',
-    'test_start_date': '2022-03-12',
-    'test_end_date': '2023-03-12',
+    'train_start_date': '2021-01-01',
+    'train_end_date': '2024-01-01',
+    'test_start_date': '2024-02-01',
+    'test_end_date': '2025-02-01',
     
     'interval': '1d',
     'input_window': 25,
