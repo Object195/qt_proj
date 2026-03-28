@@ -1,7 +1,7 @@
 import numpy as np
 import pandas as pd
+import warnings
 from numpy.lib.stride_tricks import sliding_window_view
-from config import PIPELINE
 
 class FeatureProcessor:
     """
@@ -130,15 +130,13 @@ class FeatureProcessor:
         
         return df
 
-    def add_cross_events(self, df: pd.DataFrame, col_name: str, period: int = None, shift: float = 0.0) -> pd.DataFrame:
+    def add_cross_events(self, df: pd.DataFrame, col_name: str, period: int = 20, shift: float = 0.0) -> pd.DataFrame:
         """
         Processes crossing events (up and down) against a specified shift value.
         Generates features for days since the last crosses and the total number of crosses 
         in the specified period.
         """
-        if period is None:
-            period = PIPELINE.get('input_window', 30)
-            
+ 
         feature_days_down = f"{col_name}_cd"
         feature_days_up = f"{col_name}_cu"
         feature_total_crosses = f"{col_name}_c_tot"
@@ -175,14 +173,12 @@ class FeatureProcessor:
         
         return df
 
-    def add_spike_events(self, df: pd.DataFrame, col_name: str, period: int = None, shift: float = 0.0, above: bool = True,full_statistic=True) -> pd.DataFrame:
+    def add_spike_events(self, df: pd.DataFrame, col_name: str, period: int = 20, shift: float = 0.0, above: bool = True,full_statistic=True) -> pd.DataFrame:
         """
         Processes spike events (values above or below a specified shift).
         Generates features for days since the last spike and the total number of spikes 
         in the specified period.
         """
-        if period is None:
-            period = PIPELINE.get('input_window', 30)
             
         direction = "above" if above else "below"
         feature_days_since = f"{col_name}_ds_{direction}"
@@ -281,41 +277,45 @@ class FeatureProcessor:
         T = y_windows.shape[0]
         
         log_rs_matrix = np.full((T, len(lags)), np.nan)
+
+        # Suppress expected RuntimeWarnings for slices containing only NaNs, which occur at the start of the series.
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
             
-        for i, tau in enumerate(lags):
-            # 3. Non-Overlapping Chunks
-            num_chunks = period // tau
-            if num_chunks == 0:
-                continue
+            for i, tau in enumerate(lags):
+                # 3. Non-Overlapping Chunks
+                num_chunks = period // tau
+                if num_chunks == 0:
+                    continue
+                    
+                # Take the most recent data to form complete chunks
+                truncated_windows = y_windows[:, -num_chunks * tau:]
                 
-            # Take the most recent data to form complete chunks
-            truncated_windows = y_windows[:, -num_chunks * tau:]
+                # Reshape into (T, num_chunks, tau)
+                chunks = truncated_windows.reshape(T, num_chunks, tau)
+                
+                with np.errstate(divide='ignore', invalid='ignore'):
+                    # 4. The R/S Math
+                    chunk_means = np.nanmean(chunks, axis=2, keepdims=True)
+                    mean_adj = chunks - chunk_means
+                    
+                    # Cumulative sum (integrating the returns back into a detrended price path)
+                    cum_sum = np.nancumsum(mean_adj, axis=2)
+                    
+                    # Range (Max - Min)
+                    R = np.nanmax(cum_sum, axis=2) - np.nanmin(cum_sum, axis=2)
+                    
+                    # Standard Deviation
+                    S = np.nanstd(chunks, axis=2, ddof=0)
+                    
+                    # R/S
+                    rs = R / S
+                    
+                    # Average R/S across chunks
+                    mean_rs = np.nanmean(rs, axis=1)
+                    
+                    log_rs_matrix[:, i] = np.log(mean_rs)
             
-            # Reshape into (T, num_chunks, tau)
-            chunks = truncated_windows.reshape(T, num_chunks, tau)
-            
-            with np.errstate(divide='ignore', invalid='ignore'):
-                # 4. The R/S Math
-                chunk_means = np.nanmean(chunks, axis=2, keepdims=True)
-                mean_adj = chunks - chunk_means
-                
-                # Cumulative sum (integrating the returns back into a detrended price path)
-                cum_sum = np.nancumsum(mean_adj, axis=2)
-                
-                # Range (Max - Min)
-                R = np.nanmax(cum_sum, axis=2) - np.nanmin(cum_sum, axis=2)
-                
-                # Standard Deviation
-                S = np.nanstd(chunks, axis=2, ddof=0)
-                
-                # R/S
-                rs = R / S
-                
-                # Average R/S across chunks
-                mean_rs = np.nanmean(rs, axis=1)
-                
-                log_rs_matrix[:, i] = np.log(mean_rs)
-        
         # 5. Regression
         valid_mask = ~np.isnan(log_rs_matrix) & ~np.isinf(log_rs_matrix)
         
@@ -355,12 +355,10 @@ class FeatureProcessor:
         self._register_feature(col_name, col_name)
         
 
-    def add_z_score(self, df: pd.DataFrame, col_name: str, period: int=None) -> pd.DataFrame:
+    def add_z_score(self, df: pd.DataFrame, col_name: str, period: int=20) -> pd.DataFrame:
         """
         Calculates the rolling Z-score (standard score) over a specified lookback window.
         """
-        if period is None:
-            period = PIPELINE.get('input_window', 30)
         feature_name = f"{col_name}_z_{period}"
         group_name = col_name
         
@@ -382,7 +380,7 @@ class FeatureProcessor:
         group_name = col_name
         
         # Get default period for rolling std from config
-        std_period = PIPELINE.get('input_window', 30)
+        std_period = 20
         rolling_std = df[col_name].rolling(window=std_period).std()
         
         # 1st order derivative (backward difference: x[t] - x[t-1]) normalized by rolling std

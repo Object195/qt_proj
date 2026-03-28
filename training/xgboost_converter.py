@@ -9,7 +9,7 @@ class XGBoostDataConverter:
         self.target_col = target_col
         self.scaler = StandardScaler()
 
-    def process(self, df: pd.DataFrame, train_start, train_end, test_end, test_start=None):
+    def process(self, df: pd.DataFrame, train_start, train_end, test_end, test_start=None, verbose=False):
         if test_start is None:
             test_start = train_end
 
@@ -32,7 +32,8 @@ class XGBoostDataConverter:
         if train_data_for_fit.empty:
             raise ValueError("No training data found to fit scaler.")
             
-        print(f"Fitting scaler on {len(train_data_for_fit)} rows from {train_start} to {train_end}")
+        if verbose:
+            print(f"Fitting scaler on {len(train_data_for_fit)} rows from {train_start} to {train_end}")
         self.scaler.fit(train_data_for_fit[self.feature_cols])
         
         # 2. Transform the dataset
@@ -62,10 +63,11 @@ class XGBoostDataConverter:
 
         return data
 
-    def save(self, data, output_dir):
+    def save(self, data, output_dir, verbose=False):
         os.makedirs(output_dir, exist_ok=True)
         if 'train' in data: 
             np.savez_compressed(os.path.join(output_dir, 'train_data.npz'), **data['train'])
         if 'test' in data: 
             np.savez_compressed(os.path.join(output_dir, 'test_data.npz'), **data['test'])
-        print(f"Saved datasets to {output_dir}")
+        if verbose:
+            print(f"Saved datasets to {output_dir}")

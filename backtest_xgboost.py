@@ -3,37 +3,26 @@ import os
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import sys
-import importlib.util
 import xgboost as xgb
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt 
 import plotly.graph_objects as go
 import pickle
+
+# Add project root to sys.path to allow importing config
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, PROJECT_ROOT)
+
 from features.feature_processor import FeatureProcessor
-# from config import PIPELINE, FEATURES # This will be replaced by dynamic import
+from config import PIPELINE, FEATURES
 from backtest_visualizer import BacktestVisualizer
 
-# --- Dynamic Config Loading ---
-# 1. Define model paths and load the associated config
-model_dir = 'training/models/xgboost_vatc'
+# --- Model and Data Paths ---
+model_dir = os.path.join(PROJECT_ROOT, 'training', 'models', 'xgboost_vatc')
 model_path = os.path.join(model_dir, 'model.json')
-config_path = os.path.join(model_dir, 'config_copy.py')
-
-if not os.path.exists(config_path):
-    raise FileNotFoundError(f"Config copy not found at {config_path}. "
-                            "Please ensure a model has been trained and the config was saved.")
-
-spec = importlib.util.spec_from_file_location("config_model", config_path)
-config_model = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(config_model)
-PIPELINE = config_model.PIPELINE
-FEATURES = config_model.FEATURES
-print(f"Loaded configuration from {config_path}")
-
-# 2. Load Model and Data
-train_data_path = 'training/datasets/xgboost/train_data.npz'
-test_data_path = 'training/datasets/xgboost/test_data.npz'
+train_data_path = os.path.join(PROJECT_ROOT, 'training', 'datasets', 'xgboost', 'train_data.npz')
+test_data_path = os.path.join(PROJECT_ROOT, 'training', 'datasets', 'xgboost', 'test_data.npz')
 
 if not os.path.exists(model_path):
     raise FileNotFoundError("Model not found. Run training/train_xgboost.py first.")
@@ -62,27 +51,32 @@ except Exception:
 
 #%%
 # 3. Selection: Choose 'full', 'train', 'test', or 'custom'
-VIEW_MODE = 'test' 
+VIEW_MODE = 'test'
 #VIEW_MODE = 'custom'
+
+# --- Date Definitions for Visualization ---
+# These dates define the boundaries for 'train' and 'test' view modes.
+TRAIN_START_DATE = '2021-02-01'
+TRAIN_END_DATE = '2024-02-01'
+TEST_START_DATE = '2024-03-01'
+TEST_END_DATE = '2025-03-01'
+
 CUSTOM_START = '2023-06-01'
 CUSTOM_END = '2024-06-01'
 
 CONFIDENCE_THRESHOLD = 0.5  # Probability required to trigger a Buy/Sell signal
 USE_ADJUSTED_PLOT = False     # Toggle to use adjusted predictions for visualization and equity
 NDAYS = PIPELINE.get('forecast_horizon', 5)
-#NDAYS = 1
-train_start = pd.to_datetime(PIPELINE['train_start_date'])
-train_end = pd.to_datetime(PIPELINE['train_end_date'])
-if 'test_start_date' in PIPELINE:
-    test_start = pd.to_datetime(PIPELINE['test_start_date'])
-else:
-    test_start = train_end + pd.Timedelta(days=PIPELINE.get('forecast_horizon', 3))
-test_end = pd.to_datetime(PIPELINE.get('test_end_date', PIPELINE['fetch_end_date']))
+
+train_start = pd.to_datetime(TRAIN_START_DATE)
+train_end = pd.to_datetime(TRAIN_END_DATE)
+test_start = pd.to_datetime(TEST_START_DATE)
+test_end = pd.to_datetime(TEST_END_DATE)
 
 dates_pd = pd.to_datetime(dates_all)
 if VIEW_MODE == 'train':
-    mask = (dates_pd >= train_start) & (dates_pd < train_end)
-    title_suffix = f"XGBoost - Training Set ({PIPELINE['train_start_date']} to {PIPELINE['train_end_date']})"
+    mask = (dates_pd >= train_start) & (dates_pd < train_end) 
+    title_suffix = f"XGBoost - Training Set ({TRAIN_START_DATE} to {TRAIN_END_DATE})"
 elif VIEW_MODE == 'test':
     mask = (dates_pd >= test_start) & (dates_pd < test_end)
     title_suffix = f"XGBoost - Test Set ({test_start.strftime('%Y-%m-%d')} to {test_end.strftime('%Y-%m-%d')})"

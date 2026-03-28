@@ -157,7 +157,7 @@ class PatchTSTDataConverter:
             
         return np.array(X_windows), np.array(y_labels), np.array(target_dates)
 
-    def process(self, df: pd.DataFrame, train_start, train_end, test_end, test_start=None):
+    def process(self, df: pd.DataFrame, train_start, train_end, test_end, test_start=None, verbose=False):
         """
         Splits data into train/test based on dates, scales features, and creates windows.
         """
@@ -177,7 +177,8 @@ class PatchTSTDataConverter:
         if train_data_for_fit.empty:
             raise ValueError("No training data found to fit scaler.")
             
-        print(f"Fitting scaler on {len(train_data_for_fit)} rows from {train_start} to {train_end}")
+        if verbose:
+            print(f"Fitting scaler on {len(train_data_for_fit)} rows from {train_start} to {train_end}")
         self.scaler.fit(train_data_for_fit[self.feature_cols])
         
         # 2. Transform the entire dataset
@@ -223,8 +224,9 @@ class PatchTSTDataConverter:
             }
         return data
 
-    def save(self, data, output_dir):
+    def save(self, data, output_dir, verbose=False):
         os.makedirs(output_dir, exist_ok=True)
         if 'train' in data: torch.save(data['train'], os.path.join(output_dir, 'train_data.pt'))
         if 'test' in data: torch.save(data['test'], os.path.join(output_dir, 'test_data.pt'))
-        print(f"Saved datasets to {output_dir}")
+        if verbose:
+            print(f"Saved datasets to {output_dir}")

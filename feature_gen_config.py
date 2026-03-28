@@ -1,44 +1,107 @@
 # feature_gen_config.py
 
-RAW_FEATURES = [
-    #'up_wick', 'low_wick',#'body_range',# Candle shape
-    'ema_bias_5',
-    'ema_bias_20', 'ema_bias_50', 'ema_bias_100', 'ema_bias_200', # Trend
-    'macd_hist', 'macd_line','rsi_14','rsi_7', # Momentum
-    'rvol', 'mfi', # Volume
-    'BBP'
-    #'bb_bandwidth', 'natr', # Volatility
-    # 'vwd_support', 'vwd_resistance',
-    # 'm_std_diff',  'vwap_score',   'mwap_diff'
-]
-
-TREND_PERIODS = {
-    'ema_bias_5': [2],
-    #'ema_bias_10': [5, 10],
-    'ema_bias_20': [3,5],
-    'ema_bias_50': [5,10],
-    'ema_bias_100': [10,20],
-    'ema_bias_200': [20,40],
-    'macd_hist': [5, 10, 20],
-    #'macd_line': [5,10],
-    'rsi_14': [5,10,20],
-    #'rsi_7': [5, 10],
-    #'rvol': [10, 20],
-    'mfi': [10, 20],
-    #'BBP': [10,20],
-    #'bb_bandwidth': [5, 10, 20],
-    'natr': [5, 10, 20],
+FEATURE_PROCESSOR_CONFIG = {
+    'ema_bias_5': [
+        ('add_raw_feature', {}),
+        ('add_linear_slope', {'period': 2}),
+        ('add_rolling_skewness', {'period': 50}),
+        ('add_rolling_kurtosis', {'period': 50}),
+        ('add_rolling_acf', {'period': 25, 'lag': 1})
+    ],
+    'ema_bias_20': [
+        ('add_raw_feature', {}),
+        ('add_linear_slope', {'period': 3}),
+        ('add_linear_slope', {'period': 5}),
+    ],
+    'ema_bias_50': [
+        ('add_raw_feature', {}),
+        ('add_linear_slope', {'period': 5}),
+        ('add_linear_slope', {'period': 10}),
+    ],
+    'ema_bias_100': [
+        ('add_raw_feature', {}),
+        ('add_linear_slope', {'period': 10}),
+        ('add_linear_slope', {'period': 20}),
+    ],
+    'ema_bias_200': [
+        ('add_raw_feature', {}),
+        ('add_linear_slope', {'period': 20}),
+        ('add_linear_slope', {'period': 40}),
+    ],
+    'macd_hist': [
+        ('add_raw_feature', {}),
+        ('add_linear_slope', {'period': 5}),
+        ('add_linear_slope', {'period': 10}),
+        ('add_linear_slope', {'period': 20}),
+        ('add_rolling_std', {'period': 10}),
+        ('add_rolling_std', {'period': 20}),
+        ('add_rolling_skewness', {'period': 50}),
+        ('add_rolling_kurtosis', {'period': 50}),
+        ('add_cross_events', {'shift': 0, 'period': 15}),
+        ('add_rolling_acf', {'period': 25, 'lag': 1})
+    ],
+    'macd_line': [
+        ('add_raw_feature', {}),
+        ('add_cross_events', {'shift': 0, 'period': 15}),
+    ],
+    'rsi_14': [
+        ('add_raw_feature', {}),
+        ('add_linear_slope', {'period': 5}),
+        ('add_linear_slope', {'period': 10}),
+        ('add_linear_slope', {'period': 20}),
+        ('add_spike_events', {'shift': 70, 'above': True, 'full_statistic': False}),
+        ('add_spike_events', {'shift': 30, 'above': False, 'full_statistic': False}),
+    ],
+    'rsi_7': [
+        ('add_raw_feature', {}),
+        ('add_spike_events', {'shift': 70, 'above': True, 'full_statistic': False}),
+        ('add_spike_events', {'shift': 30, 'above': False, 'full_statistic': False}),
+    ],
+    'rvol': [
+        ('add_raw_feature', {}),
+        ('add_rolling_std', {'period': 10}),
+        ('add_rolling_std', {'period': 20}),
+        ('add_rolling_skewness', {'period': 50}),
+        ('add_rolling_kurtosis', {'period': 50}),
+    ],
+    'mfi': [
+        ('add_raw_feature', {}),
+        ('add_linear_slope', {'period': 10}),
+        ('add_linear_slope', {'period': 20}),
+        ('add_cross_events', {'shift': 50, 'period': 15}),
+        ('add_spike_events', {'shift': 80, 'above': True, 'full_statistic': False}),
+        ('add_spike_events', {'shift': 20, 'above': False, 'full_statistic': False}),
+    ],
+   
+    'natr': [
+        ('add_linear_slope', {'period': 5}),
+        ('add_linear_slope', {'period': 10}),
+        ('add_linear_slope', {'period': 20}),
+        ('add_rolling_percentile', {'period': 128}),
+    ],
+    'body_range': [
+        ('add_spike_events', {'shift': 0.2, 'above': False}),
+    ],
+    'up_wick': [
+        ('add_spike_events', {'shift': 0.8, 'above': True}),
+    ],
+    'low_wick': [
+        ('add_spike_events', {'shift': 0.8, 'above': True}),
+    ],
+    'log_return': [
+        ('add_rolling_hurst', {'period': 128, 'num_lags': 8}),
+    ]
+    # Example commented features for quick future toggling
+    # 'volume': [('add_velocity_acceleration', {'period': 3, 'smooth_type': 'ma'})],
+    # 'close': [('add_velocity_acceleration', {'period': 3, 'smooth_type': 'ma'})],
+    # 'bb_bandwidth': [('add_rolling_percentile', {'period': 200})],
 }
-STOCHASTIC_FEATURES = ['ema_bias_5','macd_hist']
-SHAPE_FEATURES =['ema_bias_5','macd_hist','rvol']
-VOLATILITY_FEATURES = [
-    #'macd_line',
-    'macd_hist', # Momentum
-    'rvol',  # Volume
-]
-STD_PERIODS = [10, 20]
-SHAPE_PERIOD = 50
-
-VA_FEATURES = [
-    'volume', 'close'
-]
+"""
+     'BBP': [
+        ('add_raw_feature', {},),
+        ('add_linear_slope', {'period': 10},),
+        ('add_linear_slope', {'period': 20},),
+        ( 'add_spike_events', {'shift': 1, 'above': True, 'full_statistic': False}),
+        ('add_spike_events', {'shift': 0, 'above': False, 'full_statistic': False}),
+    ],
+"""

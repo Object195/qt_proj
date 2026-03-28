@@ -11,14 +11,16 @@ import numpy as np
 df = pd.read_csv('processed_data_v2.csv')
 df['ds'] = pd.to_datetime(df['ds'])
 
-# 2. Define ranges from config
-train_start = pd.to_datetime(PIPELINE['train_start_date'])
-train_end = pd.to_datetime(PIPELINE['train_end_date'])
-if 'test_start_date' in PIPELINE:
-    test_start = pd.to_datetime(PIPELINE['test_start_date'])
-else:
-    test_start = train_end + pd.Timedelta(days=PIPELINE.get('forecast_horizon', 3))
-test_end = pd.to_datetime(PIPELINE.get('test_end_date', PIPELINE['fetch_end_date']))
+# 2. Define ranges for visualization
+TRAIN_START_DATE = '2021-02-01'
+TRAIN_END_DATE = '2024-02-01'
+TEST_START_DATE = '2024-03-01'
+TEST_END_DATE = '2025-03-01'
+
+train_start = pd.to_datetime(TRAIN_START_DATE)
+train_end = pd.to_datetime(TRAIN_END_DATE)
+test_start = pd.to_datetime(TEST_START_DATE)
+test_end = pd.to_datetime(TEST_END_DATE)
 
 # 3. Selection: Choose 'full', 'train', 'test', or 'custom'
 # Change these variables to filter the view
@@ -28,7 +30,7 @@ CUSTOM_END = '2025-10-25'
 show_sr = False
 if VIEW_MODE == 'train':
     plot_df = df[(df['ds'] >= train_start) & (df['ds'] <= train_end)].copy()
-    title_suffix = f"Training Set ({PIPELINE['train_start_date']} to {PIPELINE['train_end_date']})"
+    title_suffix = f"Training Set ({TRAIN_START_DATE} to {TRAIN_END_DATE})"
 elif VIEW_MODE == 'test':
     plot_df = df[(df['ds'] >= test_start) & (df['ds'] <= test_end)].copy()
     title_suffix = f"Test Set ({test_start.strftime('%Y-%m-%d')} to {test_end.strftime('%Y-%m-%d')})"

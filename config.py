@@ -6,17 +6,10 @@ PIPELINE = {
     # 1. FETCHING DATES (Includes the "Burn-in" period for long-term indicators)
     'fetch_start_date': '2016-03-12', 
     'fetch_end_date': '2026-03-12',
-    
-    # 2. TRAINING/TESTING DATES (The actual period we care about modeling)
-    'train_start_date': '2019-02-12',
-    'train_end_date': '2022-02-12',
-    'test_start_date': '2022-03-12',
-    'test_end_date': '2023-03-12',
-    
+        
     'interval': '1d',
     'input_window': 25,
-    'forecast_horizon': 2,
-    'save_config_with_timestamp': False, # Toggle to save unique config copies per run
+    'forecast_horizon': 3,
 }
 
 FEATURES = [
@@ -54,7 +47,7 @@ FEATURES = [
     #{'name': ['m_std_diff', 'vwap_score', 'mwap_diff'], 'type': 'custom', 'function': 'm_indicators', 'params': {'m_window': 3, 'n_day_window': 10, 'bfac': 1, 'method': 'co_ma', 'filter_type': 'tanh'}},
 
     # Target Generation
-    {'name': 'Target_VATC', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 10, 'multiplier': 1}},
+    {'name': 'Target_VATC', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 10, 'multiplier': 0.5}},
 ]
 
 TARGET_COL = 'Target_VATC'
@@ -82,8 +75,9 @@ XGBOOST_PARAMS = {
     'gamma': 0.1,
     'random_state': 42,
     'n_jobs': -1,
-    'early_stopping_rounds': 50,
+    'early_stopping_rounds': 100,
     'eval_metric': 'mlogloss',
+    'min_child_weight': 50
 }
 
 SR_PARAMS = {

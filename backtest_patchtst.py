@@ -97,18 +97,21 @@ CONFIDENCE_THRESHOLD = 0.55  # Probability required to trigger a Buy/Sell signal
 USE_ADJUSTED_PLOT = True     # Toggle to use adjusted predictions for visualization and equity
 NDAYS = PIPELINE.get('forecast_horizon', 5)
 
-train_start = pd.to_datetime(PIPELINE['train_start_date'])
-train_end = pd.to_datetime(PIPELINE['train_end_date'])
-if 'test_start_date' in PIPELINE:
-    test_start = pd.to_datetime(PIPELINE['test_start_date'])
-else:
-    test_start = train_end + pd.Timedelta(days=PIPELINE.get('forecast_horizon', 3))
-test_end = pd.to_datetime(PIPELINE.get('test_end_date', PIPELINE['fetch_end_date']))
+# --- Date Definitions for Visualization ---
+TRAIN_START_DATE = '2021-02-01'
+TRAIN_END_DATE = '2024-02-01'
+TEST_START_DATE = '2024-03-01'
+TEST_END_DATE = '2025-03-01'
+
+train_start = pd.to_datetime(TRAIN_START_DATE)
+train_end = pd.to_datetime(TRAIN_END_DATE)
+test_start = pd.to_datetime(TEST_START_DATE)
+test_end = pd.to_datetime(TEST_END_DATE)
 
 dates_pd = pd.to_datetime(dates_all)
 if VIEW_MODE == 'train':
     mask = (dates_pd >= train_start) & (dates_pd <= train_end)
-    title_suffix = f"PatchTST - Training Set ({PIPELINE['train_start_date']} to {PIPELINE['train_end_date']})"
+    title_suffix = f"PatchTST - Training Set ({TRAIN_START_DATE} to {TRAIN_END_DATE})"
 elif VIEW_MODE == 'test':
     mask = (dates_pd >= test_start) & (dates_pd <= test_end)
     title_suffix = f"PatchTST - Test Set ({test_start.strftime('%Y-%m-%d')} to {test_end.strftime('%Y-%m-%d')})"
