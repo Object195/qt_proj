@@ -75,9 +75,9 @@ XGBOOST_PARAMS = {
     'gamma': 0.1,
     'random_state': 42,
     'n_jobs': -1,
-    'early_stopping_rounds': 100,
+    'early_stopping_rounds': 50,
     'eval_metric': 'mlogloss',
-    'min_child_weight': 50
+    #'min_child_weight': 50
 }
 
 SR_PARAMS = {

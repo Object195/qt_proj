@@ -12,8 +12,8 @@ def main(verbose=True):
     date_config = {
         'train_start_date': '2021-01-01',
         'train_end_date': '2024-01-01',
-        'test_start_date': '2025-03-01',
-        'test_end_date': '2026-03-01',
+        'test_start_date': '2024-02-01',
+        'test_end_date': '2025-02-01',
     }
 
     if verbose:
