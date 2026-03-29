@@ -15,7 +15,7 @@ PIPELINE = {
     
     'interval': '1d',
     'input_window': 25,
-    'forecast_horizon': 3,
+    'forecast_horizon': 1,
     'save_config_with_timestamp': False, # Toggle to save unique config copies per run
 }
 

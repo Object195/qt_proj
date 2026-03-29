@@ -8,7 +8,7 @@ from backtest_metrics import BacktestMetrics
 from config import PIPELINE
 
 def analyze_features(start_date=None, end_date=None, method='spearman', clip_percentile=0.95, top_n=15):
-    data_file = 'processed_data_v2.csv'
+    data_file = 'feature_set.csv'
     processor_file = 'feature_processor.pkl'
     target_col = 'log_return_target'
 
@@ -51,41 +51,51 @@ def analyze_features(start_date=None, end_date=None, method='spearman', clip_per
     # List of specific features to exclude from the IC test (e.g., long-memory indicators)
     EXCLUDE_FEATURES = ['ema_bias_200', 'ema_bias_100', 'ema_bias_50', 'macd_line']
 
+    # 1. Collect all valid features to be analyzed, respecting the exclusion list
+    features_to_analyze = [
+        f for f in feature_names
+        if f in df.columns and f not in EXCLUDE_FEATURES
+    ]
+    for f in feature_names:
+        if f in EXCLUDE_FEATURES:
+            print(f"  - Skipping feature '{f}' (explicitly excluded).")
+
+    # 2. Perform one vectorized calculation for all features
+    print(f"Calculating IC/IR for {len(features_to_analyze)} features...")
+    ic_df, ir_df = BacktestMetrics.calculate_rolling_ic_ir(
+        df, features_to_analyze, target_col,
+        ic_window=64, ir_window=128,
+        method=method, clip_percentile=clip_percentile, stride=PIPELINE.get('forecast_horizon')
+    )
+
+    # 3. Process the results from the returned DataFrames
     for group, feats in feature_groups.items():
-        valid_feats = [f for f in feats if f in feature_names and f in df.columns]
-        if not valid_feats:
+        # Consider only features that were actually processed
+        valid_feats_in_group = [f for f in feats if f in features_to_analyze]
+        if not valid_feats_in_group:
             continue
             
         group_results[group] = []
-        for f in valid_feats:
-            # Filter out explicitly excluded features
-            if f in EXCLUDE_FEATURES:
-                print(f"  - Skipping feature '{f}' (explicitly excluded).")
-                continue
-
-            ic, ir = BacktestMetrics.calculate_rolling_ic_ir(df, f, target_col, ic_window=64, ir_window=128, 
-                                                             method=method, clip_percentile=clip_percentile,stride =  PIPELINE.get('forecast_horizon'))
+        for f in valid_feats_in_group:
+            ic = ic_df[f]
+            ir = ir_df[f]
             
             # Extract clean numpy arrays without NaNs for visualization
             clean_ic = ic.dropna().values
             clean_ir = ir.dropna().values
             
             if len(clean_ic) > 0:
-                mean_ic = np.mean(clean_ic)
-                mean_ir = np.mean(clean_ir) if len(clean_ir) > 0 else np.nan
-                
                 group_results[group].append({
                     'feature': f,
                     'median_abs_ic': np.median(np.abs(clean_ic)),
                     'ic': clean_ic,
                     'ir': clean_ir
                 })
-                
                 scatter_data.append({
                     'feature': f,
                     'group': group,
-                    'mean_ic': mean_ic,
-                    'mean_ir': mean_ir
+                    'mean_ic': np.mean(clean_ic),
+                    'mean_ir': np.mean(clean_ir) if len(clean_ir) > 0 else np.nan
                 })
                 
     print(f"\n--- Top {top_n} Features by Absolute Mean IC ---")
