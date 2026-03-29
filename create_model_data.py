@@ -15,8 +15,8 @@ from training.patchtst_converter import PatchTSTDataConverter
 from training.xgboost_converter import XGBoostDataConverter
 
 def main(model_type='xgboost'):
-    DATA_FILE = 'processed_data_v2.csv'
-    PROCESSOR_FILE = 'feature_processor.pkl'
+    DATA_FILE = 'feature_set.csv'
+    PROCESSOR_FILE = 'feature_processor_filtered_2.pkl'
     
     if not os.path.exists(DATA_FILE) or not os.path.exists(PROCESSOR_FILE):
         raise FileNotFoundError(f"Missing {DATA_FILE} or {PROCESSOR_FILE}. Run prepare_datasets.py first.")

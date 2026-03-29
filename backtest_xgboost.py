@@ -19,7 +19,7 @@ from backtest_visualizer import BacktestVisualizer
 model_dir = 'training/models/xgboost_vatc'
 model_path = os.path.join(model_dir, 'model.json')
 config_path = os.path.join(model_dir, 'config_copy.py')
-
+processor_file = 'feature_processor_filtered_2.pkl'
 if not os.path.exists(config_path):
     raise FileNotFoundError(f"Config copy not found at {config_path}. "
                             "Please ensure a model has been trained and the config was saved.")
@@ -138,7 +138,7 @@ visualizer.plot(title_suffix=title_suffix, use_adjusted=USE_ADJUSTED_PLOT, ndays
 print("\nCalculating and plotting feature importance...")
 
 try:
-    with open('feature_processor.pkl', 'rb') as f:
+    with open(processor_file, 'rb') as f:
         processor = pickle.load(f)
     feature_names = processor.feature_names
 except FileNotFoundError:

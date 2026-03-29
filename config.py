@@ -4,18 +4,18 @@ PIPELINE = {
     'target_tickers': ['TSLA'],  # Only calculate features for these
     
     # 1. FETCHING DATES (Includes the "Burn-in" period for long-term indicators)
-    'fetch_start_date': '2016-03-12', 
+    'fetch_start_date': '2015-03-12', 
     'fetch_end_date': '2026-03-12',
     
     # 2. TRAINING/TESTING DATES (The actual period we care about modeling)
-    'train_start_date': '2019-01-01',
+    'train_start_date': '2021-01-01',
     'train_end_date': '2024-01-01',
     'test_start_date': '2024-03-01',
     'test_end_date': '2025-03-01',
     
     'interval': '1d',
     'input_window': 25,
-    'forecast_horizon': 1,
+    'forecast_horizon': 3,
     'save_config_with_timestamp': False, # Toggle to save unique config copies per run
 }
 
@@ -24,6 +24,7 @@ FEATURES = [
     {'name': 'log_return', 'type': 'custom', 'function': 'log_return'},
     #{'name': 'log_return_target', 'type': 'custom', 'function': 'log_return','params': {'length': '$$forecast_horizon$$','direction':-1}},
     {'name': 'log_return_target', 'type': 'custom', 'function': 'norm_forward_return','params': {'n': '$$forecast_horizon$$','length':20}},
+    {'name': 'log_return_target_1', 'type': 'custom', 'function': 'norm_forward_return','params': {'n':1,'length':20}},
     {'name': 'up_wick', 'type': 'custom', 'function': 'upper_shadow_ratio'},
     {'name': 'low_wick', 'type': 'custom', 'function': 'lower_shadow_ratio'},
     {'name': 'body_range', 'type': 'custom', 'function': 'body_range_ratio'},
@@ -56,7 +57,7 @@ FEATURES = [
     #{'name': ['m_std_diff', 'vwap_score', 'mwap_diff'], 'type': 'custom', 'function': 'm_indicators', 'params': {'m_window': 3, 'n_day_window': 10, 'bfac': 1, 'method': 'co_ma', 'filter_type': 'tanh'}},
 
     # Target Generation
-    {'name': 'Target_VATC', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 10, 'multiplier': 0.5, 'n': '$$forecast_horizon$$'}},
+    {'name': 'Target_VATC', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 10, 'multiplier': 0.7, 'n': '$$forecast_horizon$$'}},
 ]
 
 TARGET_COL = 'Target_VATC'
