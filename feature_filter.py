@@ -246,6 +246,13 @@ def run_feature_filter(params):
     scatter_fig.show()
     print("Done.")
 
-if __name__ == "__main__":
+def run(start_date, end_date):
+    FILTER_PARAMS_1['start_date'] = start_date
+    FILTER_PARAMS_1['end_date'] = end_date
+    FILTER_PARAMS_2['start_date'] = start_date
+    FILTER_PARAMS_2['end_date'] = end_date
     run_feature_filter(FILTER_PARAMS_1)
     run_feature_filter(FILTER_PARAMS_2)
+
+if __name__ == "__main__":
+    run('2016-03-01', '2026-03-01')

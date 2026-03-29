@@ -3,16 +3,6 @@ PIPELINE = {
     'tickers': ['TSLA',  'SPY'], # Added SPY to demonstrate multi-stock features
     'target_tickers': ['TSLA'],  # Only calculate features for these
     
-    # 1. FETCHING DATES (Includes the "Burn-in" period for long-term indicators)
-    'fetch_start_date': '2015-03-12', 
-    'fetch_end_date': '2026-03-12',
-    
-    # 2. TRAINING/TESTING DATES (The actual period we care about modeling)
-    'train_start_date': '2021-01-01',
-    'train_end_date': '2024-01-01',
-    'test_start_date': '2024-03-01',
-    'test_end_date': '2025-03-01',
-    
     'interval': '1d',
     'input_window': 25,
     'forecast_horizon': 3,

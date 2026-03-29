@@ -20,81 +20,89 @@ import pickle
 import tkinter as tk
 from tkinter import messagebox
 
-# 1. Fetch Data
-fetcher = DataFetcher(PIPELINE)
-raw_data = fetcher.fetch()
+def run(fetch_start_date, fetch_end_date):
+    # Inject dates into PIPELINE for DataFetcher to use dynamically
+    PIPELINE['fetch_start_date'] = fetch_start_date
+    PIPELINE['fetch_end_date'] = fetch_end_date
 
-# Load 1-min data explicitly here so it can be shared across multiple features
-DATA_DIR = r"D:\qt\data\TSLA"
-FILE_NAME = "xnas-itch-20180501-20260313.ohlcv-1m.dbn.zst"
-FILE_PATH = os.path.join(DATA_DIR, FILE_NAME)
-detect_sr = False
-if os.path.exists(FILE_PATH) and detect_sr:
-    print(f"Loading 1-min data from {FILE_PATH}...")
-    store = dbn.DBNStore.from_file(FILE_PATH)
-    intraday_df = store.to_df()
-    
-    # Explicitly scan SR levels
-    from features.sr_level import SRLevelDetector
-    from config import SR_PARAMS
-    from tqdm import tqdm
-    import pandas_ta as ta
+    # 1. Fetch Data
+    fetcher = DataFetcher(PIPELINE)
+    raw_data = fetcher.fetch()
 
-    sr_history_dict = {}
-    N_param = SR_PARAMS['window_size']
-    Nvol_param = SR_PARAMS['vol_window']
-    start_idx = max(N_param * 2, N_param + Nvol_param)
-
-    for ticker in PIPELINE.get('target_tickers', []):
-        mask = raw_data['unique_id'] == ticker
-        if not mask.any(): continue
-        df_ticker = raw_data[mask].copy()
-        df_ticker['atr'] = ta.atr(df_ticker['high'], df_ticker['low'], df_ticker['close'], length=14).bfill()
+    # Load 1-min data explicitly here so it can be shared across multiple features
+    DATA_DIR = r"D:\qt\data\TSLA"
+    FILE_NAME = "xnas-itch-20180501-20260313.ohlcv-1m.dbn.zst"
+    FILE_PATH = os.path.join(DATA_DIR, FILE_NAME)
+    detect_sr = False
+    if os.path.exists(FILE_PATH) and detect_sr:
+        print(f"Loading 1-min data from {FILE_PATH}...")
+        store = dbn.DBNStore.from_file(FILE_PATH)
+        intraday_df = store.to_df()
         
-        if 'ds' in df_ticker.columns:
-            df_ticker.set_index('ds', drop=False, inplace=True)
-            df_ticker.index = pd.to_datetime(df_ticker.index)
+        # Explicitly scan SR levels
+        from features.sr_level import SRLevelDetector
+        from config import SR_PARAMS
+        from tqdm import tqdm
+        import pandas_ta as ta
 
-        history_file = f'sr_history_{ticker}.pkl'
-        regenerate = True
-        if os.path.exists(history_file):
-            root = tk.Tk()
-            root.withdraw()
-            root.attributes("-topmost", True)
-            regenerate = messagebox.askyesno("Regenerate SR Levels", f"SR history file found for {ticker}. Do you want to regenerate it?")
-            root.destroy()
+        sr_history_dict = {}
+        N_param = SR_PARAMS['window_size']
+        Nvol_param = SR_PARAMS['vol_window']
+        start_idx = max(N_param * 2, N_param + Nvol_param)
+
+        for ticker in PIPELINE.get('target_tickers', []):
+            mask = raw_data['unique_id'] == ticker
+            if not mask.any(): continue
+            df_ticker = raw_data[mask].copy()
+            df_ticker['atr'] = ta.atr(df_ticker['high'], df_ticker['low'], df_ticker['close'], length=14).bfill()
             
-        if regenerate:
-            detector = SRLevelDetector(intraday_df=intraday_df)
-            history = []
-            for i in tqdm(range(len(df_ticker)), desc=f"Scanning SR for {ticker}"):
-                if i >= start_idx:
-                    detector.process_day(i, df_ticker)
-                history.append(detector.get_levels())
+            if 'ds' in df_ticker.columns:
+                df_ticker.set_index('ds', drop=False, inplace=True)
+                df_ticker.index = pd.to_datetime(df_ticker.index)
+
+            history_file = f'sr_history_{ticker}.pkl'
+            regenerate = True
+            if os.path.exists(history_file):
+                root = tk.Tk()
+                root.withdraw()
+                root.attributes("-topmost", True)
+                regenerate = messagebox.askyesno("Regenerate SR Levels", f"SR history file found for {ticker}. Do you want to regenerate it?")
+                root.destroy()
                 
-            with open(history_file, 'wb') as f:
-                pickle.dump(history, f)
-        else:
-            with open(history_file, 'rb') as f:
-                history = pickle.load(f)
-                
-        sr_history_dict[ticker] = history
-        
-    # Inject the loaded intraday_df into features that require it
-    for feature in FEATURES:
-        if feature.get('function') == 'm_indicators':
-            feature.setdefault('params', {})['intraday_df'] = intraday_df
-        elif feature.get('function') == 'sr_vwd':
-            feature.setdefault('params', {})['sr_history_dict'] = sr_history_dict
+            if regenerate:
+                detector = SRLevelDetector(intraday_df=intraday_df)
+                history = []
+                for i in tqdm(range(len(df_ticker)), desc=f"Scanning SR for {ticker}"):
+                    if i >= start_idx:
+                        detector.process_day(i, df_ticker)
+                    history.append(detector.get_levels())
+                    
+                with open(history_file, 'wb') as f:
+                    pickle.dump(history, f)
+            else:
+                with open(history_file, 'rb') as f:
+                    history = pickle.load(f)
+                    
+            sr_history_dict[ticker] = history
+            
+        # Inject the loaded intraday_df into features that require it
+        for feature in FEATURES:
+            if feature.get('function') == 'm_indicators':
+                feature.setdefault('params', {})['intraday_df'] = intraday_df
+            elif feature.get('function') == 'sr_vwd':
+                feature.setdefault('params', {})['sr_history_dict'] = sr_history_dict
 
-# 2. Apply Features
-# The engineer will now resolve placeholders like '$$forecast_horizon$$' automatically.
-engineer = FeatureEngineer(FEATURES, pipeline_config=PIPELINE, target_tickers=PIPELINE.get('target_tickers'))
-processed_data = engineer.apply_features(raw_data)
+    # 2. Apply Features
+    # The engineer will now resolve placeholders like '$$forecast_horizon$$' automatically.
+    engineer = FeatureEngineer(FEATURES, pipeline_config=PIPELINE, target_tickers=PIPELINE.get('target_tickers'))
+    processed_data = engineer.apply_features(raw_data)
 
-# Ensure ds is datetime for proper plotting
-processed_data['ds'] = pd.to_datetime(processed_data['ds'])
+    # Ensure ds is datetime for proper plotting
+    processed_data['ds'] = pd.to_datetime(processed_data['ds'])
 
-# 4. Save Preprocessed Data (for visualization/debugging)
-processed_data.to_csv('processed_data.csv', index=False)
-print("Saved processed_data.csv")
+    # 4. Save Preprocessed Data (for visualization/debugging)
+    processed_data.to_csv('processed_data.csv', index=False)
+    print("Saved processed_data.csv")
+
+if __name__ == '__main__':
+    run('2015-03-12', '2026-03-12')

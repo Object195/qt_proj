@@ -14,9 +14,9 @@ from config import PIPELINE, TARGET_COL
 from training.patchtst_converter import PatchTSTDataConverter
 from training.xgboost_converter import XGBoostDataConverter
 
-def main(model_type='xgboost'):
+def run(train_start, train_end, test_start, test_end, model_type='xgboost'):
     DATA_FILE = 'feature_set.csv'
-    PROCESSOR_FILE = 'feature_processor'
+    PROCESSOR_FILE = 'feature_processor.pkl'
     
     if not os.path.exists(DATA_FILE) or not os.path.exists(PROCESSOR_FILE):
         raise FileNotFoundError(f"Missing {DATA_FILE} or {PROCESSOR_FILE}. Run prepare_datasets.py first.")
@@ -37,14 +37,6 @@ def main(model_type='xgboost'):
     print(feature_names)
     target_col = TARGET_COL
 
-    # Define test set boundaries (fallback to defaults if not in config)
-    if 'test_start_date' in PIPELINE:
-        test_start_date = pd.to_datetime(PIPELINE['test_start_date'])
-    else:
-        test_start_date = pd.to_datetime(PIPELINE['train_end_date']) + pd.Timedelta(days=PIPELINE.get('forecast_horizon', 3))
-        
-    test_end_date = pd.to_datetime(PIPELINE.get('test_end_date', PIPELINE['fetch_end_date']))
-
     if model_type == 'patchtst':
         print("Converting data for PatchTST model...")
         converter = PatchTSTDataConverter(
@@ -52,16 +44,16 @@ def main(model_type='xgboost'):
             feature_cols=feature_names,
             target_col=target_col
         )
-        datasets = converter.process(processed_data, train_start=PIPELINE['train_start_date'], train_end=PIPELINE['train_end_date'], test_end=test_end_date, test_start=test_start_date)
+        datasets = converter.process(processed_data, train_start=train_start, train_end=train_end, test_end=test_end, test_start=test_start)
         converter.save(datasets, output_dir='training/datasets/patchtst')
     elif model_type == 'xgboost':
         print("Converting data for XGBoost model...")
         converter = XGBoostDataConverter(feature_cols=feature_names, target_col=target_col)
-        datasets = converter.process(processed_data, train_start=PIPELINE['train_start_date'], train_end=PIPELINE['train_end_date'], test_end=test_end_date, test_start=test_start_date)
+        datasets = converter.process(processed_data, train_start=train_start, train_end=train_end, test_end=test_end, test_start=test_start)
         converter.save(datasets, output_dir='training/datasets/xgboost')
     else:
         print(f"No data converter defined for model_type: {model_type}")
 
 if __name__ == '__main__':
     MODEL_TYPE = 'xgboost' # Options: 'patchtst', 'xgboost'
-    main(model_type=MODEL_TYPE)
+    run('2021-01-01', '2024-01-01', '2024-03-01', '2025-03-01', model_type=MODEL_TYPE)

@@ -13,7 +13,7 @@ from features.feature_processor import FeatureProcessor
 import pickle
 from feature_gen_config import FEATURE_CONFIG, RAW_FEATURES_TO_INCLUDE
 
-def main():
+def run():
     DATA_FILE = 'processed_data.csv'
     if not os.path.exists(DATA_FILE):
         raise FileNotFoundError(f"{DATA_FILE} not found. Run generate_data.py first.")
@@ -78,4 +78,4 @@ def main():
     print("Done.")
 
 if __name__ == '__main__':
-    main()
+    run()
