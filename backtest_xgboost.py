@@ -19,7 +19,7 @@ from backtest_visualizer import BacktestVisualizer
 model_dir = 'training/models/xgboost_vatc'
 model_path = os.path.join(model_dir, 'model.json')
 config_path = os.path.join(model_dir, 'config_copy.py')
-processor_file = 'feature_processor_filtered_2.pkl'
+processor_file = 'feature_processor.pkl'
 if not os.path.exists(config_path):
     raise FileNotFoundError(f"Config copy not found at {config_path}. "
                             "Please ensure a model has been trained and the config was saved.")

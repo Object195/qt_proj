@@ -44,7 +44,7 @@ FEATURE_CONFIG = {
     'ema_bias_200': [
         ('add_linear_slope', {'period': 20}),
         ('add_linear_slope', {'period': 40}),
-        ('add_linear_slope', {'period': 80})
+        #('add_linear_slope', {'period': 80})
     ],
     'macd_line': [
         ('add_cross_events', {'shift': 0, 'period': 15})
