@@ -13,10 +13,9 @@ except ImportError:
 import pandas as pd
 import os
 import databento as dbn
-from config import PIPELINE, FEATURES, TARGET_COL
+from config import PIPELINE, FEATURES
 from features.data_fetcher import DataFetcher
 from features.feature_engineer import FeatureEngineer
-from features import indicators
 import pickle
 import tkinter as tk
 from tkinter import messagebox
@@ -89,12 +88,9 @@ if os.path.exists(FILE_PATH) and detect_sr:
             feature.setdefault('params', {})['sr_history_dict'] = sr_history_dict
 
 # 2. Apply Features
-engineer = FeatureEngineer(FEATURES, target_tickers=PIPELINE.get('target_tickers'))
+# The engineer will now resolve placeholders like '$$forecast_horizon$$' automatically.
+engineer = FeatureEngineer(FEATURES, pipeline_config=PIPELINE, target_tickers=PIPELINE.get('target_tickers'))
 processed_data = engineer.apply_features(raw_data)
-
-# 3. Calculate Target (Explicitly in main as requested)
-target_params = {**PIPELINE, 'window': 20, 'multiplier': 0.5, 'n': PIPELINE.get('forecast_horizon', 5)}
-processed_data[TARGET_COL] = indicators.ternary_target(processed_data, **target_params)
 
 # Ensure ds is datetime for proper plotting
 processed_data['ds'] = pd.to_datetime(processed_data['ds'])

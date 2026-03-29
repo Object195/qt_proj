@@ -10,12 +10,12 @@ PIPELINE = {
     # 2. TRAINING/TESTING DATES (The actual period we care about modeling)
     'train_start_date': '2021-01-01',
     'train_end_date': '2024-01-01',
-    'test_start_date': '2024-02-01',
-    'test_end_date': '2025-02-01',
+    'test_start_date': '2024-03-01',
+    'test_end_date': '2025-03-01',
     
     'interval': '1d',
     'input_window': 25,
-    'forecast_horizon': 2,
+    'forecast_horizon': 5,
     'save_config_with_timestamp': False, # Toggle to save unique config copies per run
 }
 
@@ -54,7 +54,7 @@ FEATURES = [
     #{'name': ['m_std_diff', 'vwap_score', 'mwap_diff'], 'type': 'custom', 'function': 'm_indicators', 'params': {'m_window': 3, 'n_day_window': 10, 'bfac': 1, 'method': 'co_ma', 'filter_type': 'tanh'}},
 
     # Target Generation
-    {'name': 'Target_VATC', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 10, 'multiplier': 1}},
+    {'name': 'Target_VATC', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 10, 'multiplier': 0.5, 'n': '$$forecast_horizon$$'}},
 ]
 
 TARGET_COL = 'Target_VATC'

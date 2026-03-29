@@ -4,9 +4,24 @@ import pandas_ta as ta
 from . import indicators # Dynamically loads functions from this file
 
 class FeatureEngineer:
-    def __init__(self, features_config: list, target_tickers: list = None):
+    def __init__(self, features_config: list, pipeline_config: dict = None, target_tickers: list = None):
         self.features_config = features_config
+        self.pipeline_config = pipeline_config if pipeline_config is not None else {}
         self.target_tickers = target_tickers
+
+    def _resolve_params(self, params: dict) -> dict:
+        """Resolves placeholder values in parameters using the main pipeline config."""
+        resolved_params = {}
+        for key, value in params.items():
+            if isinstance(value, str) and value.startswith('$$') and value.endswith('$$'):
+                param_name = value.strip('$')
+                if param_name in self.pipeline_config:
+                    resolved_params[key] = self.pipeline_config[param_name]
+                else:
+                    raise ValueError(f"Placeholder '{value}' for param '{key}' not found in pipeline_config.")
+            else:
+                resolved_params[key] = value
+        return resolved_params
 
     def apply_features(self, df: pd.DataFrame) -> pd.DataFrame:
         """Reads config and applies standard pandas_ta or custom features dynamically."""
@@ -15,10 +30,13 @@ class FeatureEngineer:
         for feature in self.features_config:
             name = feature['name']
             f_type = feature['type']
+            params = feature.get('params', {}).copy()
+
+            # Resolve any placeholder values (e.g., '$$forecast_horizon$$')
+            params = self._resolve_params(params)
 
             if f_type == 'custom':
                 func_name = feature['function']
-                params = feature.get('params', {}).copy()
                 
                 if self.target_tickers:
                     params['target_tickers'] = self.target_tickers
@@ -55,7 +73,6 @@ class FeatureEngineer:
 
             elif f_type == 'pandas_ta':
                 print(f"Applying pandas_ta feature: {name}")
-                params = feature.get('params', {}).copy()
                 
                 CustomStrategy = ta.Strategy(
                     name=f"Dynamic_{name}",

@@ -91,14 +91,10 @@ if needs_intraday:
     else:
         print(f"Warning: 1-min data not found at {FILE_PATH}")
 
-# Ensure target generation correctly uses the forecast horizon
-for feature in MODIFY_FEATURES:
-    if feature.get('function') == 'ternary_target':
-        feature.setdefault('params', {})['n'] = PIPELINE.get('forecast_horizon', 5)
-
 # 3. Apply Modified Features
 print("Applying modified features...")
-engineer = FeatureEngineer(MODIFY_FEATURES, target_tickers=PIPELINE.get('target_tickers'))
+# The engineer will now resolve placeholders like '$$forecast_horizon$$' automatically.
+engineer = FeatureEngineer(MODIFY_FEATURES, pipeline_config=PIPELINE, target_tickers=PIPELINE.get('target_tickers'))
 processed_data = engineer.apply_features(processed_data)
 
 # 4. Save Updated Data

@@ -139,9 +139,9 @@ class FeatureProcessor:
         if period is None:
             period = PIPELINE.get('input_window', 30)
             
-        feature_days_down = f"{col_name}_cd"
-        feature_days_up = f"{col_name}_cu"
-        feature_total_crosses = f"{col_name}_c_tot"
+        feature_days_down = f"{col_name}_days_down"
+        feature_days_up = f"{col_name}_days_up"
+        feature_total_crosses = f"{col_name}_tot_cross"
         
         group_name = col_name
         
@@ -185,8 +185,8 @@ class FeatureProcessor:
             period = PIPELINE.get('input_window', 30)
             
         direction = "above" if above else "below"
-        feature_days_since = f"{col_name}_ds_{direction}"
-        feature_total_spikes = f"{col_name}_ts_{direction}"
+        feature_days_since = f"{col_name}_days_{direction}"
+        feature_total_spikes = f"{col_name}_tot_spike_{direction}"
         
         group_name = col_name
         

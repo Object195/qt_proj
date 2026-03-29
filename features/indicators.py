@@ -4,10 +4,15 @@ import numpy as np
 import pandas_ta as ta
 
 def log_return(df: pd.DataFrame, **kwargs) -> pd.Series:
-    """Daily Log Return: ln(Close_t / Close_{t-1})"""
+    """Daily Log Return: ln(Close_t / Close_{t-ndays}) or Forward Return"""
     targets = kwargs.get('target_tickers', df['unique_id'].unique())
+    ndays = kwargs.get('length',1)
+    direct = kwargs.get('direction',1)
     mask = df['unique_id'].isin(targets)
-    return df[mask].groupby('unique_id')['close'].transform(lambda x: np.log(x / x.shift(1)))
+    if direct == 1:
+        return df[mask].groupby('unique_id')['close'].transform(lambda x: np.log(x / x.shift(ndays)))
+    else:
+        return df[mask].groupby('unique_id')['close'].transform(lambda x: np.log(x.shift(-1*ndays) / x))
 
 def norm_open(df: pd.DataFrame, **kwargs) -> pd.Series:
     """Normalized Open: (Open_t - Close_t) / Close_t"""
@@ -180,6 +185,25 @@ def natr(df: pd.DataFrame, **kwargs) -> pd.Series:
     targets = kwargs.get('target_tickers', df['unique_id'].unique())
     mask = df['unique_id'].isin(targets)
     return df[mask].groupby('unique_id', group_keys=False).apply(lambda x: x.ta.natr(length=length), include_groups=False).squeeze()
+
+def norm_forward_return(df: pd.DataFrame, **kwargs) -> pd.Series:
+    """
+    Normalized n-day Forward Log Return: 
+    ln(Close_{t+n} / Close_t) / (sqrt(n) * NATR(length))
+    """
+    targets = kwargs.get('target_tickers', df['unique_id'].unique())
+    n = kwargs.get('n', 1)
+    length = kwargs.get('length', 20)
+    mask = df['unique_id'].isin(targets)
+    
+    def _calc(group):
+        fwd_ret = np.log(group['close'].shift(-n) / group['close'])
+        natr_val = group.ta.natr(length=length)
+        
+        denom = np.sqrt(n) * natr_val
+        return fwd_ret / denom.replace(0, np.nan)
+        
+    return df[mask].groupby('unique_id', group_keys=False).apply(_calc, include_groups=False).squeeze()
 
 def ternary_target(df: pd.DataFrame, **kwargs) -> pd.Series:
     """

@@ -38,11 +38,12 @@ class BacktestVisualizer:
         o_d0 = orig_metrics['delta_0']
         o_d1 = orig_metrics['delta_1']
         o_d2 = orig_metrics['delta_2']
+        o_pi = orig_metrics['precision_imbalance']
         o_ret = orig_metrics['final_return']
         o_sharpe = orig_metrics['sharpe_ratio']
         o_cum = orig_metrics['cumulative_return_series']
         
-        orig_str = f"Signal Acc (Δ=0): {o_d0:.2%}, Miss (Δ=1): {o_d1:.2%}, Wrong (Δ=2): {o_d2:.2%} | Sim Return ({ndays}d): {o_ret:.2%} | Sharpe: {o_sharpe:.2f}"
+        orig_str = f"Signal Acc (Δ=0): {o_d0:.2%}, Miss (Δ=1): {o_d1:.2%}, Wrong (Δ=2): {o_d2:.2%} | PI (Δ0-Δ2): {o_pi:.2%} | Sim Return ({ndays}d): {o_ret:.2%} | Sharpe: {o_sharpe:.2f}"
         print(f"\nOriginal Stats: {orig_str}")
         
         # Print label distributions
@@ -57,11 +58,12 @@ class BacktestVisualizer:
             a_d0 = adj_metrics['delta_0']
             a_d1 = adj_metrics['delta_1']
             a_d2 = adj_metrics['delta_2']
+            a_pi = adj_metrics['precision_imbalance']
             a_ret = adj_metrics['final_return']
             a_sharpe = adj_metrics['sharpe_ratio']
             a_cum = adj_metrics['cumulative_return_series']
             
-            adj_str = f"Signal Acc (Δ=0): {a_d0:.2%}, Miss (Δ=1): {a_d1:.2%}, Wrong (Δ=2): {a_d2:.2%} | Sim Return ({ndays}d): {a_ret:.2%} | Sharpe: {a_sharpe:.2f}"
+            adj_str = f"Signal Acc (Δ=0): {a_d0:.2%}, Miss (Δ=1): {a_d1:.2%}, Wrong (Δ=2): {a_d2:.2%} | PI (Δ0-Δ2): {a_pi:.2%} | Sim Return ({ndays}d): {a_ret:.2%} | Sharpe: {a_sharpe:.2f}"
             print(f"Adjusted Stats: {adj_str}")
             
             adj_pred_dist = self.plot_df['Adjusted_Predicted_Label'].value_counts(normalize=True).sort_index().to_dict()
