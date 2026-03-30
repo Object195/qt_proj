@@ -7,9 +7,10 @@ import importlib.util
 import xgboost as xgb
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt 
 import plotly.graph_objects as go
+import plotly.colors as pcolors
 import pickle
+import shap
 from features.feature_processor import FeatureProcessor
 # from config import PIPELINE, FEATURES # This will be replaced by dynamic import
 from backtest_visualizer import BacktestVisualizer
@@ -17,6 +18,12 @@ from backtest_visualizer import BacktestVisualizer
 def run(train_start, train_end, test_start, test_end):
     # --- Dynamic Config Loading ---
     # 1. Define model paths and load the associated config
+    plot_signal = False
+    plot_gain_group = False
+    plot_gain_individual = False
+    plot_shap = False
+    plot_truth = True
+    truth_plot_mode = 'point' # 'box', 'point', or 'snr'
     model_dir = 'training/models/xgboost_vatc'
     model_path = os.path.join(model_dir, 'model.json')
     config_path = os.path.join(model_dir, 'config_copy.py')
@@ -68,7 +75,7 @@ def run(train_start, train_end, test_start, test_end):
     CUSTOM_END = '2024-06-01'
 
     CONFIDENCE_THRESHOLD = 0.5  # Probability required to trigger a Buy/Sell signal
-    USE_ADJUSTED_PLOT = False     # Toggle to use adjusted predictions for visualization and equity
+    USE_ADJUSTED_PLOT = True     # Toggle to use adjusted predictions for visualization and equity
     NDAYS = PIPELINE.get('forecast_horizon', 5)
     
     train_start = pd.to_datetime(train_start)
@@ -129,7 +136,10 @@ def run(train_start, train_end, test_start, test_end):
 
     # 4. Candlestick Visualization
     visualizer = BacktestVisualizer(results_df, df_prices)
-    visualizer.plot(title_suffix=title_suffix, use_adjusted=USE_ADJUSTED_PLOT, ndays=NDAYS)
+    stats_text = visualizer._calculate_stats(use_adjusted=USE_ADJUSTED_PLOT, ndays=NDAYS)
+    if plot_signal:
+        
+        visualizer.plot(title_suffix=title_suffix, use_adjusted=USE_ADJUSTED_PLOT, ndays=NDAYS)
 
     # 5. Feature Importance Analysis
     print("\nCalculating and plotting feature importance...")
@@ -155,37 +165,191 @@ def run(train_start, train_end, test_start, test_end):
                 
         importance_series = processor.calculate_grouped_importance(feature_importance_dict)
 
-        stats_text = visualizer._calculate_stats(use_adjusted=USE_ADJUSTED_PLOT, ndays=NDAYS)
+       
+        if plot_gain_group:
+            # Create Plotly figure for grouped importance
+            fig_grouped = go.Figure()
+            fig_grouped.add_trace(go.Bar(
+                x=importance_series.index,
+                y=importance_series.values,
+                marker_color='skyblue',
+                name='Group Importance'
+            ))
+            fig_grouped.add_annotation(
+                x=0.98, y=0.98,
+                xref="paper", yref="paper",
+                text=stats_text.replace('\n', '<br>'), # Use <br> for newlines in plotly
+                showarrow=False,
+                align='right',
+                bordercolor="black",
+                borderwidth=1,
+                bgcolor="rgba(255, 255, 255, 0.8)"
+            )
+            fig_grouped.update_layout(
+                title='Grouped Feature Importance (Normalized Total Gain)',
+                xaxis_title='Feature Group',
+                yaxis_title='Normalized Total Gain',
+                template='plotly_dark',
+                xaxis_tickangle=-45,
+                height=600
+            )
+            fig_grouped.show()
+        if plot_gain_individual:
+            # 6. Detailed Feature Importance for all groups, grouped by type
+            print("\nPlotting detailed feature importance for all features, grouped by type...")
+            fig_detailed = go.Figure()
 
-        plt.figure(figsize=(10, 6))
-        plt.bar(importance_series.index, importance_series.values, color='skyblue')
-        plt.text(0.98, 0.98, stats_text, transform=plt.gca().transAxes, ha='right', va='top', bbox=dict(facecolor='white', alpha=0.8))
-        plt.grid(axis='y', linestyle='--', alpha=0.7)
-        plt.xticks(rotation=45, ha='right')
-        plt.title('Grouped Feature Importance (Normalized Total Gain)')
-        plt.ylabel('Normalized Total Gain')
-        plt.tight_layout()
-        plt.show()
+            # Order groups by their total importance (descending), matching the first plot
+            sorted_groups = importance_series.index.tolist()
 
-        # 6. Detailed Feature Importance for a Specific Group
-        selected_group = 'BBP' # Change this to inspect other groups
-        print(f"\nPlotting detailed feature importance for selected group: {selected_group}...")
-        
-        try:
-            detailed_series = processor.calculate_individual_importance(feature_importance_dict, selected_group)
-            if not detailed_series.empty:
-                plt.figure(figsize=(10, 6))
-                plt.bar(detailed_series.index, detailed_series.values, color='lightgreen')
-                plt.grid(axis='y', linestyle='--', alpha=0.7)
-                plt.xticks(rotation=45, ha='right')
-                plt.title(f'Detailed Feature Importance for Group: {selected_group} (Normalized Total Gain)')
-                plt.ylabel('Normalized Total Gain')
-                plt.tight_layout()
-                plt.show()
+            for group in sorted_groups:
+                group_feats = processor.feature_groups[group]
+                importance_data = {feat: feature_importance_dict.get(feat, 0.0) for feat in group_feats}
+                group_series = pd.Series(importance_data).sort_values(ascending=False)
+                group_series = group_series[group_series > 0]
+                
+                if not group_series.empty:
+                    fig_detailed.add_trace(go.Bar(
+                        x=[[group] * len(group_series), group_series.index], # Multi-category x-axis
+                        y=group_series.values,
+                        name=group
+                    ))
+
+            fig_detailed.update_layout(
+                title='Individual Feature Importance (Gain)',
+                yaxis_title='Normalized Total Gain',
+                template='plotly_dark',
+                height=700,
+                xaxis_tickangle=-90,
+                showlegend=True,
+                legend_title_text="Feature Groups"
+            )
+            fig_detailed.show()
+
+        # 7. SHAP Value Analysis
+        if plot_shap or plot_truth:
+            print("\nCalculating SHAP values for non-neutral predictions...")
+                
+            # Ensure X is on CPU for SHAP explainer
+            if device == 'cuda':
+                X_eval_cpu = cp.asnumpy(X_eval)
             else:
-                print(f"No positive gain found for features in group '{selected_group}'.")
-        except ValueError as e:
-            print(e)
+                X_eval_cpu = X_eval
+                
+            # Isolate the data where the model made an active Buy/Sell decision
+            non_neutral_mask = adjusted_predicted_labels != 1
+            X_eval_nn = X_eval_cpu[non_neutral_mask]
+            
+            if len(X_eval_nn) > 0:
+                explainer = shap.TreeExplainer(model)
+                shap_values = explainer.shap_values(X_eval_nn)
+                
+                # Handle multiclass output from SHAP (can be a list of arrays or a 3D array depending on the version)
+                if isinstance(shap_values, list):
+                    # Average across classes and samples
+                    mean_abs_shap = np.mean([np.abs(sv).mean(axis=0) for sv in shap_values], axis=0)
+                elif len(shap_values.shape) == 3:
+                    # (samples, features, classes)
+                    mean_abs_shap = np.abs(shap_values).mean(axis=(0, 2))
+                else:
+                    mean_abs_shap = np.abs(shap_values).mean(axis=0)
+                    
+                shap_importance_dict = {}
+                for i, shap_val in enumerate(mean_abs_shap):
+                    if i < len(feature_names):
+                        shap_importance_dict[feature_names[i]] = float(shap_val)
+                
+                # Calculate group importance based on SHAP to sort the groups natively
+                shap_group_series = processor.calculate_grouped_importance(shap_importance_dict)
+                sorted_shap_groups = shap_group_series.index.tolist()
+                
+                # Plot 1: Mean |SHAP| Bar Plot
+                if plot_shap:   
+                    fig_shap = go.Figure()
+                    for group in sorted_shap_groups:
+                        group_feats = processor.feature_groups[group]
+                        importance_data = {feat: shap_importance_dict.get(feat, 0.0) for feat in group_feats}
+                        group_series = pd.Series(importance_data).sort_values(ascending=False)
+                        group_series = group_series[group_series > 0]
+                        
+                        if not group_series.empty:
+                            fig_shap.add_trace(go.Bar(
+                                x=[[group] * len(group_series), group_series.index],
+                                y=group_series.values,
+                                name=group
+                            ))
+                            
+                    fig_shap.update_layout(
+                        title='Individual Feature Importance (Mean |SHAP| for Non-Neutral Decisions)',
+                        yaxis_title='Mean |SHAP| Value',
+                        template='plotly_dark',
+                        height=700,
+                        xaxis_tickangle=-90,
+                        showlegend=True,
+                        legend_title_text="Feature Groups"
+                    )
+                    fig_shap.show()
+
+                # Plot 2: Truth Value Plot
+                if plot_truth:
+                    print(f"\nCalculating and plotting SHAP directional truth values (mode: {truth_plot_mode})...")
+                    
+                    # Directional SHAP: Net push towards 'Up' (Class 2) vs 'Down' (Class 0)
+                    if isinstance(shap_values, list):
+                        raw_shap_directional = shap_values[2] - shap_values[0]
+                    elif len(shap_values.shape) == 3:
+                        raw_shap_directional = shap_values[:, :, 2] - shap_values[:, :, 0]
+                    else:
+                        raw_shap_directional = shap_values
+                    
+                    y_eval_nn = y_eval[non_neutral_mask]
+                    y_dir = y_eval_nn - 1 
+                    truth_values = raw_shap_directional * y_dir[:, np.newaxis]
+                    
+                    fig_truth = go.Figure()
+                    max_shap = max(shap_importance_dict.values()) if shap_importance_dict else 1.0
+                    if max_shap == 0: max_shap = 1.0
+                    
+                    for group in sorted_shap_groups:
+                        group_feats = processor.feature_groups[group]
+                        importance_data = {feat: shap_importance_dict.get(feat, 0.0) for feat in group_feats}
+                        group_series = pd.Series(importance_data).sort_values(ascending=False)
+                        group_series = group_series[group_series > 0]
+                        
+                        for feat in group_series.index:
+                            if feat in feature_names:
+                                feat_idx = feature_names.index(feat)
+                                feat_truth = truth_values[:, feat_idx]
+                                
+                                intensity = shap_importance_dict[feat] / max_shap
+                                color = pcolors.sample_colorscale('YlOrRd', [intensity])[0]
+                                
+                                if truth_plot_mode == 'box':
+                                    fig_truth.add_trace(go.Box(y=feat_truth, x=[[group] * len(feat_truth), [feat] * len(feat_truth)], name=feat, marker_color=color, showlegend=False, boxpoints=False))
+                                elif truth_plot_mode == 'point':
+                                    mean_truth = np.mean(feat_truth)
+                                    std_truth = np.std(feat_truth)
+                                    fig_truth.add_trace(go.Scatter(y=[mean_truth], x=[[group], [feat]], mode='markers', name=feat, marker=dict(color=color, size=8, line=dict(width=1, color='DarkSlateGrey')), error_y=dict(type='data', array=[std_truth], visible=True, thickness=1, color='rgba(200, 200, 200, 0.3)'), showlegend=False))
+                                elif truth_plot_mode == 'snr':
+                                    mean_truth = np.mean(feat_truth)
+                                    std_truth = np.std(feat_truth)
+                                    snr = mean_truth / std_truth if std_truth > 1e-9 else 0.0
+                                    fig_truth.add_trace(go.Bar(y=[snr], x=[[group], [feat]], name=feat, marker_color=color, showlegend=False))
+                    
+                    fig_truth.add_trace(go.Scatter(x=[None], y=[None], mode='markers', marker=dict(colorscale='YlOrRd', cmin=0, cmax=max_shap, colorbar=dict(title="Mean |SHAP|"), showscale=True), showlegend=False, hoverinfo='none'))
+                    fig_truth.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
+                    
+                    if truth_plot_mode == 'box':
+                        title_text, yaxis_title = 'Directional SHAP Truth Value Distribution (for Non-Neutral Decisions)', 'Truth Value (Direction * Net SHAP)'
+                    elif truth_plot_mode == 'point':
+                        title_text, yaxis_title = 'Directional SHAP Truth Value Mean & Std Dev (for Non-Neutral Decisions)', 'Truth Value (Direction * Net SHAP)'
+                    elif truth_plot_mode == 'snr':
+                        title_text, yaxis_title = 'Directional SHAP Truth Value SNR (for Non-Neutral Decisions)', 'SNR (Mean / Std Dev)'
+
+                    fig_truth.update_layout(title=title_text, yaxis_title=yaxis_title, template='plotly_dark', height=700, xaxis_tickangle=-90)
+                    fig_truth.show()
+            else:
+                print("No non-neutral predictions found to calculate SHAP values.")
 
 if __name__ == '__main__':
     run('2021-01-01', '2024-01-01', '2024-03-01', '2025-03-01')
