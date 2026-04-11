@@ -14,3 +14,6 @@ env/
 build/
 .ipynb_checkpoints/
 .vscode/
+
+#data and model
+sliding_window_results/

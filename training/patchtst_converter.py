@@ -119,11 +119,12 @@ from sklearn.preprocessing import StandardScaler
 import os
 
 class PatchTSTDataConverter:
-    def __init__(self, window_size: int, feature_cols: list, target_col: str):
+    def __init__(self, window_size: int, feature_cols: list, target_col: str, verbose: bool = True):
         self.window_size = window_size
         self.feature_cols = feature_cols
         self.target_col = target_col
         self.scaler = StandardScaler()
+        self.verbose = verbose
 
     def _create_windows(self, df: pd.DataFrame):
         """Creates sliding windows for a single ticker dataframe."""
@@ -177,7 +178,7 @@ class PatchTSTDataConverter:
         if train_data_for_fit.empty:
             raise ValueError("No training data found to fit scaler.")
             
-        print(f"Fitting scaler on {len(train_data_for_fit)} rows from {train_start} to {train_end}")
+        if self.verbose: print(f"Fitting scaler on {len(train_data_for_fit)} rows from {train_start} to {train_end}")
         self.scaler.fit(train_data_for_fit[self.feature_cols])
         
         # 2. Transform the entire dataset
@@ -227,4 +228,4 @@ class PatchTSTDataConverter:
         os.makedirs(output_dir, exist_ok=True)
         if 'train' in data: torch.save(data['train'], os.path.join(output_dir, 'train_data.pt'))
         if 'test' in data: torch.save(data['test'], os.path.join(output_dir, 'test_data.pt'))
-        print(f"Saved datasets to {output_dir}")
+        if self.verbose: print(f"Saved datasets to {output_dir}")
