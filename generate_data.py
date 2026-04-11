@@ -13,7 +13,8 @@ except ImportError:
 import pandas as pd
 import os
 import databento as dbn
-from config import PIPELINE, FEATURES
+import config
+import importlib
 from features.data_fetcher import DataFetcher
 from features.feature_engineer import FeatureEngineer
 import pickle
@@ -21,6 +22,11 @@ import tkinter as tk
 from tkinter import messagebox
 
 def run(fetch_start_date, fetch_end_date):
+    # Force reload config to ensure interactive environments pick up changes from disk
+    importlib.reload(config)
+    PIPELINE = config.PIPELINE
+    FEATURES = config.FEATURES
+
     # Inject dates into PIPELINE for DataFetcher to use dynamically
     PIPELINE['fetch_start_date'] = fetch_start_date
     PIPELINE['fetch_end_date'] = fetch_end_date
@@ -94,6 +100,7 @@ def run(fetch_start_date, fetch_end_date):
 
     # 2. Apply Features
     # The engineer will now resolve placeholders like '$$forecast_horizon$$' automatically.
+    #print(FEATURES)
     engineer = FeatureEngineer(FEATURES, pipeline_config=PIPELINE, target_tickers=PIPELINE.get('target_tickers'))
     processed_data = engineer.apply_features(raw_data)
 

@@ -48,6 +48,7 @@ FEATURES = [
 
     # Target Generation
     {'name': 'Target_VATC', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 10, 'multiplier': 0.7, 'n': '$$forecast_horizon$$'}},
+    {'name': 'Target_VATC_raw', 'type': 'custom', 'function': 'ternary_target', 'params': {'window': 10, 'multiplier': 0.7, 'n': '$$forecast_horizon$$','continuous': True}},
 ]
 
 TARGET_COL = 'Target_VATC'

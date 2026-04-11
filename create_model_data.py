@@ -11,8 +11,6 @@ import pandas as pd
 import os
 import pickle
 from config import PIPELINE, TARGET_COL
-from training.patchtst_converter import PatchTSTDataConverter
-from training.xgboost_converter import XGBoostDataConverter
 
 def run(train_start, train_end, test_start, test_end, model_type='xgboost'):
     DATA_FILE = 'feature_set.csv'
@@ -39,6 +37,7 @@ def run(train_start, train_end, test_start, test_end, model_type='xgboost'):
 
     if model_type == 'patchtst':
         print("Converting data for PatchTST model...")
+        from training.patchtst_converter import PatchTSTDataConverter
         converter = PatchTSTDataConverter(
             window_size=PIPELINE['input_window'],
             feature_cols=feature_names,
@@ -48,6 +47,7 @@ def run(train_start, train_end, test_start, test_end, model_type='xgboost'):
         converter.save(datasets, output_dir='training/datasets/patchtst')
     elif model_type == 'xgboost':
         print("Converting data for XGBoost model...")
+        from training.xgboost_converter import XGBoostDataConverter
         converter = XGBoostDataConverter(feature_cols=feature_names, target_col=target_col)
         datasets = converter.process(processed_data, train_start=train_start, train_end=train_end, test_end=test_end, test_start=test_start)
         converter.save(datasets, output_dir='training/datasets/xgboost')
@@ -56,4 +56,9 @@ def run(train_start, train_end, test_start, test_end, model_type='xgboost'):
 
 if __name__ == '__main__':
     MODEL_TYPE = 'xgboost' # Options: 'patchtst', 'xgboost'
-    run('2021-01-01', '2024-01-01', '2024-03-01', '2025-03-01', model_type=MODEL_TYPE)
+    try:
+        import run_pipeline
+        run(run_pipeline.TRAIN_START, run_pipeline.TRAIN_END, run_pipeline.TEST_START, run_pipeline.TEST_END, model_type=MODEL_TYPE)
+    except ImportError:
+        print("Warning: Could not import run_pipeline. Using default dates.")
+        run('2020-01-01', '2023-01-01', '2023-03-01', '2024-03-01', model_type=MODEL_TYPE)

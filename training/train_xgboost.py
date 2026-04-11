@@ -5,6 +5,7 @@ from datetime import datetime
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
 
 import numpy as np
+import pandas as pd
 import xgboost as xgb
 from sklearn.metrics import accuracy_score, classification_report
 from sklearn.utils.class_weight import compute_sample_weight
@@ -36,21 +37,38 @@ def run():
 
     # Pop the custom parameter from the dict to avoid passing it to XGBoost constructor
     use_weights = XGBOOST_PARAMS.pop('use_sample_weights', False)
+    #weight_type = 'balanced'
+    weight_type = 'target'
     sample_weights = None
-
+    target_factor = 0 # power factor for target weight 
     if use_weights:
-        # Calculate sample weights to handle class imbalance
-        print("\nCalculating sample weights for class imbalance...")
-        sample_weights = compute_sample_weight(class_weight='balanced', y=y_train)
-
-        # Print weight distribution for verification
-        print("Weight distribution per class:")
-        unique_classes = np.unique(y_train)
-        for cls in unique_classes:
-            # Find the weight for the current class (all samples of a class have the same weight)
-            weight_for_class = sample_weights[y_train == cls][0]
-            count = (y_train == cls).sum()
-            print(f"  Class {int(cls)} (count: {count}): weight = {weight_for_class:.4f}")
+        if weight_type == 'balanced':
+             sample_weights = compute_sample_weight(class_weight='balanced', y=y_train)
+        else:
+            print("\nCalculating sample weights based on absolute log_forward_return...")
+            dates_train = train_data['dates']
+            
+            processed_data_path = os.path.join(PROJECT_ROOT, 'processed_data.csv')
+            df = pd.read_csv(processed_data_path)
+            df['ds'] = pd.to_datetime(df['ds'])
+            
+            weight_col = 'Target_VATC_raw'
+            if weight_col not in df.columns:
+                print(f"Warning: '{weight_col}' not found in processed_data.csv, trying 'log_return_target' as fallback.")
+                weight_col = 'Target_VATC_raw'
+                
+            df_weights = df.drop_duplicates(subset=['ds']).set_index('ds')[weight_col]
+            dates_train_pd = pd.to_datetime(dates_train)
+            class_weights = compute_sample_weight(class_weight='balanced', y=y_train)
+            # Extract absolute values matching the training dates
+            raw_weights = df_weights.loc[dates_train_pd].abs().values
+            clip_threshold = np.percentile(raw_weights, 95)
+            raw_weights = np.clip(raw_weights, a_min=None, a_max=clip_threshold)
+            # Normalize mean to 1
+            sample_weights = (raw_weights**target_factor) * class_weights
+            sample_weights = sample_weights/ np.mean(sample_weights)
+            
+            print(f"Sample weights calculated. Min: {sample_weights.min():.6e}, Max: {sample_weights.max():.6e}, Sum: {sample_weights.sum():.2f}")
     else:
         print("\nSample weighting is disabled by config.")
 

@@ -35,17 +35,18 @@ def run_full_pipeline(fetch_start, fetch_end, train_start, train_end, test_start
         step['func'](**step['kwargs'])
     print("\n=== PIPELINE COMPLETE ===")
 
+# Define the core explicit pipeline dates
+# (These override any previous implicit config definitions)
+FETCH_START = '2015-03-12'
+FETCH_END = '2026-03-12'
+
+TRAIN_START = '2021-01-01'
+TRAIN_END = '2024-01-01'
+
+TEST_START = '2024-03-01'
+TEST_END = '2025-03-01'
+
 if __name__ == '__main__':
-    # Define the core explicit pipeline dates
-    # (These override any previous implicit config definitions)
-    FETCH_START = '2015-03-12'
-    FETCH_END = '2026-03-12'
-    
-    TRAIN_START = '2021-01-01'
-    TRAIN_END = '2024-01-01'
-    
-    TEST_START = '2024-03-01'
-    TEST_END = '2025-03-01'
     
     # Fire the whole sequence
     run_full_pipeline(FETCH_START, FETCH_END, TRAIN_START, TRAIN_END, TEST_START, TEST_END)

@@ -213,6 +213,7 @@ def ternary_target(df: pd.DataFrame, **kwargs) -> pd.Series:
     window = kwargs.get('window', 20)
     multiplier = kwargs.get('multiplier', 0.5)
     n = kwargs.get('n', 5)
+    continuous = kwargs.get('continuous', False)
     targets = kwargs.get('target_tickers', df['unique_id'].unique())
     mask = df['unique_id'].isin(targets)
     
@@ -226,6 +227,9 @@ def ternary_target(df: pd.DataFrame, **kwargs) -> pd.Series:
         
         # Normalize threshold for n days: sigma * sqrt(n)
         threshold = vol * multiplier * np.sqrt(n)
+        
+        if continuous:
+            return forward_ret / threshold.replace(0, np.nan)
         
         # 4. Signal Logic (Initialize as 1/Neutral)
         signal = pd.Series(1, index=group.index, dtype=float)

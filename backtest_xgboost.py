@@ -18,12 +18,12 @@ from backtest_visualizer import BacktestVisualizer
 def run(train_start, train_end, test_start, test_end):
     # --- Dynamic Config Loading ---
     # 1. Define model paths and load the associated config
-    plot_signal = False
+    plot_signal = True
     plot_gain_group = False
     plot_gain_individual = False
     plot_shap = False
     plot_truth = True
-    truth_plot_mode = 'point' # 'box', 'point', or 'snr'
+    truth_plot_mode = 'snr' # 'box', 'point', or 'snr'
     model_dir = 'training/models/xgboost_vatc'
     model_path = os.path.join(model_dir, 'model.json')
     config_path = os.path.join(model_dir, 'config_copy.py')
@@ -75,7 +75,7 @@ def run(train_start, train_end, test_start, test_end):
     CUSTOM_END = '2024-06-01'
 
     CONFIDENCE_THRESHOLD = 0.5  # Probability required to trigger a Buy/Sell signal
-    USE_ADJUSTED_PLOT = True     # Toggle to use adjusted predictions for visualization and equity
+    USE_ADJUSTED_PLOT = False     # Toggle to use adjusted predictions for visualization and equity
     NDAYS = PIPELINE.get('forecast_horizon', 5)
     
     train_start = pd.to_datetime(train_start)
@@ -237,7 +237,13 @@ def run(train_start, train_end, test_start, test_end):
                 X_eval_cpu = X_eval
                 
             # Isolate the data where the model made an active Buy/Sell decision
-            non_neutral_mask = adjusted_predicted_labels != 1
+            if USE_ADJUSTED_PLOT:
+                non_neutral_mask = adjusted_predicted_labels != 1
+                decision_type = "Adjusted Non-Neutral"
+            else:
+                non_neutral_mask = predicted_labels != 1
+                decision_type = "Non-Neutral"
+                
             X_eval_nn = X_eval_cpu[non_neutral_mask]
             
             if len(X_eval_nn) > 0:
@@ -280,7 +286,7 @@ def run(train_start, train_end, test_start, test_end):
                             ))
                             
                     fig_shap.update_layout(
-                        title='Individual Feature Importance (Mean |SHAP| for Non-Neutral Decisions)',
+                        title=f'Individual Feature Importance (Mean |SHAP| for {decision_type} Decisions)',
                         yaxis_title='Mean |SHAP| Value',
                         template='plotly_dark',
                         height=700,
@@ -305,6 +311,13 @@ def run(train_start, train_end, test_start, test_end):
                     y_eval_nn = y_eval[non_neutral_mask]
                     y_dir = y_eval_nn - 1 
                     truth_values = raw_shap_directional * y_dir[:, np.newaxis]
+                    # Get the TRUE labels for the days where the model made a non-neutral prediction
+                    true_labels_for_nn_preds = y_eval[non_neutral_mask]
+                    # Convert true labels (0-Down, 1-Neutral, 2-Up) to true direction (-1, 0, 1) for calculation
+                    true_direction = true_labels_for_nn_preds - 1
+                    # The "truth value" is the directional SHAP value multiplied by the true direction.
+                    # A positive result means the feature's contribution (as measured by SHAP) correctly aligned with the actual market outcome.
+                    truth_values = raw_shap_directional * true_direction[:, np.newaxis]
                     
                     fig_truth = go.Figure()
                     max_shap = max(shap_importance_dict.values()) if shap_importance_dict else 1.0
@@ -340,11 +353,11 @@ def run(train_start, train_end, test_start, test_end):
                     fig_truth.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5)
                     
                     if truth_plot_mode == 'box':
-                        title_text, yaxis_title = 'Directional SHAP Truth Value Distribution (for Non-Neutral Decisions)', 'Truth Value (Direction * Net SHAP)'
+                        title_text, yaxis_title = f'Directional SHAP Truth Value Distribution (for {decision_type} Decisions)', 'Truth Value (Direction * Net SHAP)'
                     elif truth_plot_mode == 'point':
-                        title_text, yaxis_title = 'Directional SHAP Truth Value Mean & Std Dev (for Non-Neutral Decisions)', 'Truth Value (Direction * Net SHAP)'
+                        title_text, yaxis_title = f'Directional SHAP Truth Value Mean & Std Dev (for {decision_type} Decisions)', 'Truth Value (Direction * Net SHAP)'
                     elif truth_plot_mode == 'snr':
-                        title_text, yaxis_title = 'Directional SHAP Truth Value SNR (for Non-Neutral Decisions)', 'SNR (Mean / Std Dev)'
+                        title_text, yaxis_title = f'Directional SHAP Truth Value SNR (for {decision_type} Decisions)', 'SNR (Mean / Std Dev)'
 
                     fig_truth.update_layout(title=title_text, yaxis_title=yaxis_title, template='plotly_dark', height=700, xaxis_tickangle=-90)
                     fig_truth.show()
@@ -352,5 +365,11 @@ def run(train_start, train_end, test_start, test_end):
                 print("No non-neutral predictions found to calculate SHAP values.")
 
 if __name__ == '__main__':
-    run('2021-01-01', '2024-01-01', '2024-03-01', '2025-03-01')
+    # Import dates dynamically from run_pipeline to ensure consistency
+    try:
+        import run_pipeline
+        run(run_pipeline.TRAIN_START, run_pipeline.TRAIN_END, run_pipeline.TEST_START, run_pipeline.TEST_END)
+    except ImportError:
+        print("Warning: Could not import run_pipeline. Using default dates.")
+        run('2020-01-01', '2023-01-01', '2023-03-01', '2024-03-01')
 # %%
