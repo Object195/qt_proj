@@ -158,15 +158,15 @@ if __name__ == '__main__':
     FETCH_START = '2015-03-12'
     FETCH_END = '2026-03-12'
     
-    WINDOW_START = '2017-01-01'
-    WINDOW_END = '2026-01-01'
+    WINDOW_START = '2016-01-01'
+    WINDOW_END = '2025-01-01'
     
     TRAINING_LENGTH = '36M'   # 3 years
     TEST_LENGTH = '6M'        # 3 months
     GAP = '1M'                # 1 month gap
-    #PROCESSOR_FILE = 'feature_processor.pkl'
-    PROCESSOR_FILE = 'feature_processor_shap.pkl'
-    N_FILTERS =0
+    PROCESSOR_FILE = 'feature_processor.pkl'
+    #PROCESSOR_FILE = 'feature_processor_shap.pkl'
+    N_FILTERS =2
     
     
     # Toggle run_preparation to True to regenerate the full dataset and features initially 

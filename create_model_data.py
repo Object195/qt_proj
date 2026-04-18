@@ -12,12 +12,11 @@ import os
 import pickle
 from config import PIPELINE, TARGET_COL
 
-def run(train_start, train_end, test_start, test_end, model_type='xgboost', output_dir=None, verbose=True):
+def run(train_start, train_end, test_start, test_end, model_type='xgboost', output_dir=None, verbose=True, processor_file='feature_processor.pkl'):
     DATA_FILE = 'feature_set.csv'
-    PROCESSOR_FILE = 'feature_processor.pkl'
     
-    if not os.path.exists(DATA_FILE) or not os.path.exists(PROCESSOR_FILE):
-        raise FileNotFoundError(f"Missing {DATA_FILE} or {PROCESSOR_FILE}. Run prepare_datasets.py first.")
+    if not os.path.exists(DATA_FILE) or not os.path.exists(processor_file):
+        raise FileNotFoundError(f"Missing {DATA_FILE} or {processor_file}. Run prepare_datasets.py first.")
 
     if verbose: print(f"Loading {DATA_FILE}...")
     processed_data = pd.read_csv(DATA_FILE)
@@ -25,8 +24,8 @@ def run(train_start, train_end, test_start, test_end, model_type='xgboost', outp
     if 'ds' in processed_data.columns:
         processed_data['ds'] = pd.to_datetime(processed_data['ds'])
         
-    if verbose: print(f"Loading feature processor from {PROCESSOR_FILE}...")
-    with open(PROCESSOR_FILE, 'rb') as f:
+    if verbose: print(f"Loading feature processor from {processor_file}...")
+    with open(processor_file, 'rb') as f:
         processor = pickle.load(f)
 
     # Extract the new feature columns registered in feature_names

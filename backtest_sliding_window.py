@@ -10,9 +10,9 @@ import pickle
 import importlib.util
 from backtest_visualizer import BacktestVisualizer
 
-def run_sliding_window_backtest():
+def run_sliding_window_backtest(processor_file='feature_processor.pkl'):
     # --- Configuration ---
-    plot_shap = True
+    plot_shap = False
     plot_truth = True
     truth_plot_mode = 'snr' # 'box', 'point', or 'snr'
     CONFIDENCE_THRESHOLD = 0.5  # Probability required to trigger a Buy/Sell signal
@@ -46,7 +46,6 @@ def run_sliding_window_backtest():
         print("Config not found, defaulting NDAYS to 5.")
         NDAYS = 5
 
-    processor_file = 'feature_processor.pkl'
     try:
         with open(processor_file, 'rb') as f:
             processor = pickle.load(f)
@@ -74,10 +73,10 @@ def run_sliding_window_backtest():
             continue
 
         # Load Data
-        test_data = np.load(data_path, allow_pickle=True)
-        X_test = test_data['X']
-        y_test = test_data['y']
-        dates_test = test_data['dates']
+        with np.load(data_path, allow_pickle=True) as test_data:
+            X_test = test_data['X']
+            y_test = test_data['y']
+            dates_test = test_data['dates']
         
         if len(X_test) == 0:
             continue
@@ -237,4 +236,5 @@ def run_sliding_window_backtest():
                 fig_truth.show()
 
 if __name__ == '__main__':
-    run_sliding_window_backtest()
+    run_sliding_window_backtest("feature_processor_shap.pkl")
+   #run_sliding_window_backtest("feature_processor.pkl")

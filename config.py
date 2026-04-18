@@ -68,6 +68,7 @@ PATCHTST_PARAMS = {
 
 XGBOOST_PARAMS = {
     'use_sample_weights': True,  # Toggle to enable/disable class imbalance penalization
+    'target_factor': 0, # power factor for return target weight
     'n_estimators': 500,
     'max_depth': 3,
     'learning_rate': 0.05,

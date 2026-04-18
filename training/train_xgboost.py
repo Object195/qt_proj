@@ -26,11 +26,12 @@ def run(data_dir=None, model_save_dir=None, verbose=True):
         raise FileNotFoundError(f"{train_data_path} not found. Run generate_data.py with MODEL_TYPE='xgboost' first.")
 
     if verbose: print("Loading data...")
-    train_data = np.load(train_data_path)
-    X_train, y_train = train_data['X'], train_data['y']
+    with np.load(train_data_path) as train_data:
+        X_train, y_train = train_data['X'], train_data['y']
+        dates_train = train_data['dates']
 
-    test_data = np.load(test_data_path, allow_pickle=True)
-    X_test, y_test = test_data['X'], test_data['y']
+    with np.load(test_data_path, allow_pickle=True) as test_data:
+        X_test, y_test = test_data['X'], test_data['y']
 
     if verbose:
         print(f"Training data shape: {X_train.shape}")
@@ -38,18 +39,16 @@ def run(data_dir=None, model_save_dir=None, verbose=True):
 
     # Get the custom parameter without modifying the original config dict
     use_weights = XGBOOST_PARAMS.get('use_sample_weights', False)
-    xgb_params = {k: v for k, v in XGBOOST_PARAMS.items() if k != 'use_sample_weights'}
+    xgb_params = {k: v for k, v in XGBOOST_PARAMS.items() if k != 'use_sample_weights' and k != 'target_factor'}
     #weight_type = 'balanced'
     weight_type = 'target'
     sample_weights = None
-    target_factor = 0.5 # power factor for target weight 
+    target_factor = XGBOOST_PARAMS.get('target_factor', 0) # power factor for target weight 
     if use_weights:
         if weight_type == 'balanced':
              sample_weights = compute_sample_weight(class_weight='balanced', y=y_train)
         else:
             if verbose: print("\nCalculating sample weights based on absolute log_forward_return...")
-            dates_train = train_data['dates']
-            
             processed_data_path = os.path.join(PROJECT_ROOT, 'processed_data.csv')
             df = pd.read_csv(processed_data_path)
             df['ds'] = pd.to_datetime(df['ds'])
