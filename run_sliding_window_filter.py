@@ -21,7 +21,7 @@ def run_sliding_window(
     training_length, test_length, gap,
     run_preparation=True,
     verbose=False,
-    processor_file='feature_processor.pkl',
+    processor_file='temp_data/feature_processor.pkl',
     n_filters=0
 ):
     # 1. First Sequence: Run data preparations (One-Time Execution)
@@ -75,7 +75,7 @@ def run_sliding_window(
     print(f"  Total Iters  : {total_iters}\n")
 
     current_processor_file = processor_file
-    output_processor_file = 'feature_processor_shap.pkl'
+    output_processor_file = 'temp_data/feature_processor_shap.pkl'
     
     for filter_iter in range(n_filters + 1):
         print(f"\n=== SLIDING WINDOW SERIES {filter_iter + 1}/{n_filters + 1} ===")
@@ -164,9 +164,9 @@ if __name__ == '__main__':
     TRAINING_LENGTH = '36M'   # 3 years
     TEST_LENGTH = '6M'        # 3 months
     GAP = '1M'                # 1 month gap
-    PROCESSOR_FILE = 'feature_processor.pkl'
-    #PROCESSOR_FILE = 'feature_processor_shap.pkl'
-    N_FILTERS =2
+    PROCESSOR_FILE = 'temp_data/feature_processor.pkl'
+    #PROCESSOR_FILE = 'temp_data/feature_processor_shap.pkl'
+    N_FILTERS =1
     
     
     # Toggle run_preparation to True to regenerate the full dataset and features initially 

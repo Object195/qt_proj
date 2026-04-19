@@ -14,9 +14,9 @@ FILTER_PARAMS_1 = {
     'gap_interval': '128D',      # Step forward interval (e.g., 90 days)
     'method': 'spearman',
     'clip_percentile': 0.95,
-    'data_file': 'feature_set.csv',
-    'processor_file': 'feature_processor.pkl',
-    'output_processor_file': 'feature_processor_temp.pkl',
+    'data_file': 'temp_data/feature_set.csv',
+    'processor_file': 'temp_data/feature_processor.pkl',
+    'output_processor_file': 'temp_data/feature_processor_temp.pkl',
     'stride': 1,
     'ic_lim': 0.015,            # Threshold for absolute mean IC
     'ir_lim': 0.25,             # Threshold for absolute mean IR
@@ -33,9 +33,9 @@ FILTER_PARAMS_2 = {
     'gap_interval': '128D',      # Step forward interval (e.g., 90 days)
     'method': 'spearman',
     'clip_percentile': 0.95,
-    'data_file': 'feature_set.csv',
-    'processor_file': 'feature_processor_temp.pkl',
-    'output_processor_file': 'feature_processor.pkl',
+    'data_file': 'temp_data/feature_set.csv',
+    'processor_file': 'temp_data/feature_processor_temp.pkl',
+    'output_processor_file': 'temp_data/feature_processor.pkl',
     'stride': PIPELINE.get('forecast_horizon'),
     'ic_lim': 0.025,            # Threshold for absolute mean IC
     'ir_lim': 0.25,             # Threshold for absolute mean IR

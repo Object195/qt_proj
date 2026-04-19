@@ -12,8 +12,8 @@ import os
 import pickle
 from config import PIPELINE, TARGET_COL
 
-def run(train_start, train_end, test_start, test_end, model_type='xgboost', output_dir=None, verbose=True, processor_file='feature_processor.pkl'):
-    DATA_FILE = 'feature_set.csv'
+def run(train_start, train_end, test_start, test_end, model_type='xgboost', output_dir=None, verbose=True, processor_file='temp_data/feature_processor.pkl'):
+    DATA_FILE = 'temp_data/feature_set.csv'
     
     if not os.path.exists(DATA_FILE) or not os.path.exists(processor_file):
         raise FileNotFoundError(f"Missing {DATA_FILE} or {processor_file}. Run prepare_datasets.py first.")

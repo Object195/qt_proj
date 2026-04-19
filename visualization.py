@@ -8,7 +8,7 @@ import pickle
 import numpy as np
 
 # 1. Load the processed data
-df = pd.read_csv('processed_data_v2.csv')
+df = pd.read_csv('temp_data/processed_data_v2.csv')
 df['ds'] = pd.to_datetime(df['ds'])
 
 # 2. Define ranges from config
@@ -104,7 +104,7 @@ for ticker in PIPELINE.get('target_tickers', []):
 
     # 5. Overlay SR Levels from Saved PKL
     if show_sr:
-        sr_file = f'sr_history_{ticker}.pkl'
+        sr_file = f'temp_data/sr_history_{ticker}.pkl'
         if os.path.exists(sr_file):
             with open(sr_file, 'rb') as f:
                 sr_history = pickle.load(f)

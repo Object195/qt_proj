@@ -17,3 +17,4 @@ build/
 
 #data and model
 sliding_window_results/
+temp_data/

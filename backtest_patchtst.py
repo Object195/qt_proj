@@ -154,7 +154,7 @@ adjusted_predicted_labels[(predicted_labels == 2) & (all_probs[:, 2] > CONFIDENC
 
 # 3. Prepare DataFrame for Visualization
 # Load original processed data to get actual prices corresponding to the dates
-df_prices = pd.read_csv('processed_data.csv')
+df_prices = pd.read_csv('temp_data/processed_data.csv')
 df_prices['ds'] = pd.to_datetime(df_prices['ds'])
 
 # Create a results dataframe

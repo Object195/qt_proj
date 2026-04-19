@@ -49,7 +49,7 @@ def run(data_dir=None, model_save_dir=None, verbose=True):
              sample_weights = compute_sample_weight(class_weight='balanced', y=y_train)
         else:
             if verbose: print("\nCalculating sample weights based on absolute log_forward_return...")
-            processed_data_path = os.path.join(PROJECT_ROOT, 'processed_data.csv')
+            processed_data_path = os.path.join(PROJECT_ROOT, 'temp_data', 'processed_data.csv')
             df = pd.read_csv(processed_data_path)
             df['ds'] = pd.to_datetime(df['ds'])
             

@@ -27,7 +27,7 @@ def run(train_start, train_end, test_start, test_end):
     model_dir = 'training/models/xgboost_vatc'
     model_path = os.path.join(model_dir, 'model.json')
     config_path = os.path.join(model_dir, 'config_copy.py')
-    processor_file = 'feature_processor.pkl'
+    processor_file = 'temp_data/feature_processor.pkl'
     if not os.path.exists(config_path):
         raise FileNotFoundError(f"Config copy not found at {config_path}. "
                                 "Please ensure a model has been trained and the config was saved.")
@@ -122,7 +122,7 @@ def run(train_start, train_end, test_start, test_end):
     adjusted_predicted_labels[(predicted_labels == 2) & (all_probs[:, 2] > CONFIDENCE_THRESHOLD)] = 2
 
     # 3. Prepare DataFrame for Visualization
-    df_prices = pd.read_csv('processed_data.csv')
+    df_prices = pd.read_csv('temp_data/processed_data.csv')
 
     results_df = pd.DataFrame({
         'ds': dates_eval,

@@ -10,7 +10,7 @@ import pickle
 import importlib.util
 from backtest_visualizer import BacktestVisualizer
 
-def run_sliding_window_backtest(processor_file='feature_processor.pkl'):
+def run_sliding_window_backtest(processor_file='temp_data/feature_processor.pkl'):
     # --- Configuration ---
     plot_shap = False
     plot_truth = True
@@ -148,7 +148,7 @@ def run_sliding_window_backtest(processor_file='feature_processor.pkl'):
 
     # --- Evaluate Visuals and Equidity ---
     print("\nEvaluating combined performance...")
-    df_prices = pd.read_csv('processed_data.csv')
+    df_prices = pd.read_csv('temp_data/processed_data.csv')
     visualizer = BacktestVisualizer(df_combined, df_prices)
     
     visualizer.plot(title_suffix="Sliding Window Combined Backtest", use_adjusted=USE_ADJUSTED_PLOT, ndays=NDAYS)
@@ -236,5 +236,5 @@ def run_sliding_window_backtest(processor_file='feature_processor.pkl'):
                 fig_truth.show()
 
 if __name__ == '__main__':
-    run_sliding_window_backtest("feature_processor_shap.pkl")
-   #run_sliding_window_backtest("feature_processor.pkl")
+    run_sliding_window_backtest("temp_data/feature_processor_shap.pkl")
+   #run_sliding_window_backtest("temp_data/feature_processor.pkl")

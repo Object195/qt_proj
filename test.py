@@ -45,7 +45,7 @@ df_sr = data.copy()
 df_sr.columns = [c.lower() for c in df_sr.columns]
 df_sr['atr'] = ta.atr(df_sr['high'], df_sr['low'], df_sr['close'], length=14).bfill()
 
-history_file = f'sr_history_{ticker}.pkl'
+history_file = f'temp_data/sr_history_{ticker}.pkl'
 regenerate = True
 if os.path.exists(history_file):
     root = tk.Tk()
@@ -55,6 +55,7 @@ if os.path.exists(history_file):
     root.destroy()
 
 if regenerate:
+    os.makedirs('temp_data', exist_ok=True)
     detector = SRLevelDetector(intraday_df=intraday_df)
     N_param = SR_PARAMS['window_size']
     Nvol_param = SR_PARAMS['vol_window']

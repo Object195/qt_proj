@@ -40,6 +40,7 @@ def run(fetch_start_date, fetch_end_date):
     FILE_NAME = "xnas-itch-20180501-20260313.ohlcv-1m.dbn.zst"
     FILE_PATH = os.path.join(DATA_DIR, FILE_NAME)
     detect_sr = False
+    os.makedirs('temp_data', exist_ok=True)
     if os.path.exists(FILE_PATH) and detect_sr:
         print(f"Loading 1-min data from {FILE_PATH}...")
         store = dbn.DBNStore.from_file(FILE_PATH)
@@ -66,7 +67,7 @@ def run(fetch_start_date, fetch_end_date):
                 df_ticker.set_index('ds', drop=False, inplace=True)
                 df_ticker.index = pd.to_datetime(df_ticker.index)
 
-            history_file = f'sr_history_{ticker}.pkl'
+            history_file = f'temp_data/sr_history_{ticker}.pkl'
             regenerate = True
             if os.path.exists(history_file):
                 root = tk.Tk()
@@ -108,8 +109,9 @@ def run(fetch_start_date, fetch_end_date):
     processed_data['ds'] = pd.to_datetime(processed_data['ds'])
 
     # 4. Save Preprocessed Data (for visualization/debugging)
-    processed_data.to_csv('processed_data.csv', index=False)
-    print("Saved processed_data.csv")
+    os.makedirs('temp_data', exist_ok=True)
+    processed_data.to_csv('temp_data/processed_data.csv', index=False)
+    print("Saved temp_data/processed_data.csv")
 
 if __name__ == '__main__':
     run('2015-03-12', '2026-03-12')

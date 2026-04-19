@@ -14,7 +14,7 @@ import pickle
 from feature_gen_config import FEATURE_CONFIG, RAW_FEATURES_TO_INCLUDE
 
 def run():
-    DATA_FILE = 'processed_data.csv'
+    DATA_FILE = 'temp_data/processed_data.csv'
     if not os.path.exists(DATA_FILE):
         raise FileNotFoundError(f"{DATA_FILE} not found. Run generate_data.py first.")
 
@@ -66,12 +66,14 @@ def run():
     # Sort feature names alphabetically to fix the input order and avoid randomness
     processor.feature_names.sort()
 
-    output_file = 'feature_set.csv'
+    output_file = 'temp_data/feature_set.csv'
     print(f"\nSaving generated dataset to {output_file}...")
+    os.makedirs('temp_data', exist_ok=True)
     df.to_csv(output_file, index=False)
     
-    processor_file = 'feature_processor.pkl'
+    processor_file = 'temp_data/feature_processor.pkl'
     print(f"Saving feature processor to {processor_file}...")
+    os.makedirs('temp_data', exist_ok=True)
     with open(processor_file, 'wb') as f:
         pickle.dump(processor, f)
         

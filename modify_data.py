@@ -5,6 +5,15 @@ import os
 import databento as dbn
 from config import PIPELINE, FEATURES 
 from modify_config import MODIFY_FEATURES
+import config
+import modify_config
+import importlib
+
+# Force reload configs to prevent interactive caching
+importlib.reload(config)
+importlib.reload(modify_config)
+PIPELINE = config.PIPELINE
+MODIFY_FEATURES = modify_config.MODIFY_FEATURES
 from features.feature_engineer import FeatureEngineer
 from training.patchtst_converter import PatchTSTDataConverter
 from training.xgboost_converter import XGBoostDataConverter
@@ -13,7 +22,7 @@ import tkinter as tk
 from tkinter import messagebox
 
 # 1. Load existing processed data
-DATA_FILE = 'processed_data.csv'
+DATA_FILE = 'temp_data/processed_data.csv'
 if not os.path.exists(DATA_FILE):
     raise FileNotFoundError(f"{DATA_FILE} not found. Run generate_data.py first.")
 
@@ -59,7 +68,7 @@ if needs_intraday:
                     df_ticker.set_index('ds', drop=False, inplace=True)
                     df_ticker.index = pd.to_datetime(df_ticker.index)
                     
-                history_file = f'sr_history_{ticker}.pkl'
+                history_file = f'temp_data/sr_history_{ticker}.pkl'
                 regenerate = True
                 if os.path.exists(history_file):
                     root = tk.Tk()
@@ -98,6 +107,7 @@ engineer = FeatureEngineer(MODIFY_FEATURES, pipeline_config=PIPELINE, target_tic
 processed_data = engineer.apply_features(processed_data)
 
 # 4. Save Updated Data
-processed_data.to_csv('processed_data.csv', index=False)
-print("Saved updated processed_data.csv")
+os.makedirs('temp_data', exist_ok=True)
+processed_data.to_csv('temp_data/processed_data.csv', index=False)
+print("Saved updated temp_data/processed_data.csv")
 print("Please run prepare_datasets.py to convert the modified data for model training.")

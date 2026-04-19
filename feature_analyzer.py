@@ -8,8 +8,8 @@ from backtest_metrics import BacktestMetrics
 from config import PIPELINE
 
 def analyze_features(start_date=None, end_date=None, method='spearman', clip_percentile=0.95, top_n=15):
-    data_file = 'feature_set.csv'
-    processor_file = 'feature_processor.pkl'
+    data_file = 'temp_data/feature_set.csv'
+    processor_file = 'temp_data/feature_processor.pkl'
     target_col = 'log_return_target'
 
     if not os.path.exists(data_file) or not os.path.exists(processor_file):

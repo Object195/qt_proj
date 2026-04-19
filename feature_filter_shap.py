@@ -7,9 +7,9 @@ import shap
 import pickle
 
 def run_shap_filter(
-    #processor_file='feature_processor.pkl', 
-    processor_file='feature_processor_shap.pkl',
-    output_processor_file='feature_processor_shap.pkl'
+    #processor_file='temp_data/feature_processor.pkl', 
+    processor_file='temp_data/feature_processor_shap.pkl',
+    output_processor_file='temp_data/feature_processor_shap.pkl'
 ):
     print(f"--- Starting SHAP Value Feature Filter ---")
     print(f"Processor In:  {processor_file}")
@@ -137,6 +137,7 @@ def run_shap_filter(
         processor.feature_groups = {g: fs for g, fs in processor.feature_groups.items() if len(fs) > 0}
 
     print(f"Saving new processor object to {output_processor_file}...")
+    os.makedirs('temp_data', exist_ok=True)
     with open(output_processor_file, 'wb') as f:
         pickle.dump(processor, f)
     print("Done.")
