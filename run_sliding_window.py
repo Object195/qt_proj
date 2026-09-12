@@ -2,12 +2,9 @@ import os
 import shutil
 import pandas as pd
 from tqdm import tqdm
-import generate_data
-import generate_features
-import feature_filter
-import create_model_data
+from feature_extraction import generate_data, generate_features, create_model_data
+from feature_selection import feature_filter, feature_filter_shap
 from training import train_xgboost
-import feature_filter_shap
 
 def parse_interval(interval_str):
     """Helper to consistently convert intervals (like 90D or 3M) into Timedeltas or DateOffsets."""

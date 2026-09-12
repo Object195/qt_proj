@@ -3,7 +3,7 @@ import numpy as np
 import plotly.graph_objects as go
 import pickle
 import os
-from backtest_metrics import BacktestMetrics
+from backtest.backtest_metrics import BacktestMetrics
 from config import PIPELINE
 
 # --- FILTER PARAMETERS ---

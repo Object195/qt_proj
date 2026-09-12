@@ -1,9 +1,7 @@
 import pandas as pd
-import generate_data
-import generate_features
-import feature_filter
-import create_model_data
-import backtest_xgboost
+from feature_extraction import generate_data, generate_features, create_model_data
+from feature_selection import feature_filter
+from backtest import backtest_xgboost
 from training import train_xgboost
 
 def run_full_pipeline(fetch_start, fetch_end, train_start, train_end, test_start, test_end):

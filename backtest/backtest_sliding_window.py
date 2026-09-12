@@ -1,4 +1,10 @@
 import os
+import sys
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 import re
 import numpy as np
 import pandas as pd
@@ -8,7 +14,7 @@ import plotly.graph_objects as go
 import plotly.colors as pcolors
 import pickle
 import importlib.util
-from backtest_visualizer import BacktestVisualizer
+from backtest.backtest_visualizer import BacktestVisualizer
 
 def run_sliding_window_backtest(processor_file='temp_data/feature_processor.pkl'):
     # --- Configuration ---
@@ -19,7 +25,7 @@ def run_sliding_window_backtest(processor_file='temp_data/feature_processor.pkl'
     USE_ADJUSTED_PLOT = False   # Toggle to use adjusted predictions for visualization and equity
     
     # --- Locate Sliding Window Results ---
-    base_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'sliding_window_results')
+    base_dir = os.path.join(PROJECT_ROOT, 'sliding_window_results')
     if not os.path.exists(base_dir):
         print(f"Directory {base_dir} not found. Run run_sliding_window.py first.")
         return

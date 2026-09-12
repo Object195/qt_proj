@@ -2,7 +2,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import numpy as np
-from backtest_metrics import BacktestMetrics
+from backtest.backtest_metrics import BacktestMetrics
 
 class BacktestVisualizer:
     def __init__(self, results_df: pd.DataFrame, price_df: pd.DataFrame):

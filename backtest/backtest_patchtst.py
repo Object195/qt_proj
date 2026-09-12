@@ -12,6 +12,11 @@ except ImportError:
     pass
 
 import sys
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
 import importlib.util
 import torch
 import torch.nn as nn
@@ -19,7 +24,7 @@ import pandas as pd
 from transformers import PatchTSTConfig, PatchTSTForClassification
 import numpy as np
 # from config import PIPELINE # This will be replaced by dynamic import
-from backtest_visualizer import BacktestVisualizer
+from backtest.backtest_visualizer import BacktestVisualizer
 
 # --- Dynamic Config Loading ---
 # 1. Define model paths and load the associated config

@@ -4,7 +4,13 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pickle
 import os
-from backtest_metrics import BacktestMetrics
+import sys
+
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+from backtest.backtest_metrics import BacktestMetrics
 from config import PIPELINE
 
 def analyze_features(start_date=None, end_date=None, method='spearman', clip_percentile=0.95, top_n=15):

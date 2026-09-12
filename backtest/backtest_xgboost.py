@@ -12,8 +12,7 @@ import plotly.colors as pcolors
 import pickle
 import shap
 from features.feature_processor import FeatureProcessor
-# from config import PIPELINE, FEATURES # This will be replaced by dynamic import
-from backtest_visualizer import BacktestVisualizer
+from backtest.backtest_visualizer import BacktestVisualizer
 
 def run(train_start, train_end, test_start, test_end):
     # --- Dynamic Config Loading ---

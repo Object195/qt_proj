@@ -11,7 +11,7 @@ import pandas as pd
 import os
 from features.feature_processor import FeatureProcessor
 import pickle
-from feature_gen_config import FEATURE_CONFIG, RAW_FEATURES_TO_INCLUDE
+from feature_extraction.feature_gen_config import FEATURE_CONFIG, RAW_FEATURES_TO_INCLUDE
 
 def run():
     DATA_FILE = 'temp_data/processed_data.csv'
